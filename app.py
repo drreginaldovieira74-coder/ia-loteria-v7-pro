@@ -48,6 +48,24 @@ def atraso(df):
 # =========================
 def jogo_valido(jogo):
     soma = sum(jogo)
+    if soma < 180 or soma > 220:
+        return False
+
+    pares = sum(1 for n in jogo if n % 2 == 0)
+    if pares < 6 or pares > 9:
+        return False
+
+    # distribuição por grupos (1-5, 6-10...)
+    grupos = [0]*5
+    for n in jogo:
+        grupos[(n-1)//5] += 1
+
+    # evita concentração
+    if any(g > 5 for g in grupos):
+        return False
+
+    return True
+    soma = sum(jogo)
     if soma < 170 or soma > 230:
         return False
 
