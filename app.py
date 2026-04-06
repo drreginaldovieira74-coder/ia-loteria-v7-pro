@@ -112,27 +112,42 @@ def gerar_pool(base, atrasadas, faltantes):
 
     return pool
 
+def jogo_valido(jogo):
+    soma = sum(jogo)
+    if not (180 <= soma <= 220):
+        return False
+
+    pares = sum(1 for n in jogo if n % 2 == 0)
+    if not (6 <= pares <= 9):
+        return False
+
+    seq = 0
+    for i in range(len(jogo)-1):
+        if jogo[i] + 1 == jogo[i+1]:
+            seq += 1
+            if seq >= 3:
+                return False
+        else:
+            seq = 0
+
+    return True
+
+
 def gerar_jogo(base, atrasadas, faltantes):
-    pool = gerar_pool(base, atrasadas, faltantes)
-    return sorted(random.sample(pool, 15))
+    while True:
+        jogo = set()
 
-def melhor_jogo(base, atrasadas, faltantes):
-    melhor = None
-    melhor_score = -1
+        jogo.update(base[:10])
+        jogo.update(atrasadas[:5])
+        jogo.update(faltantes[:3])
 
-    for _ in range(100):
-        jogo = gerar_jogo(base, atrasadas, faltantes)
+        while len(jogo) < 15:
+            jogo.add(random.randint(1, 25))
 
-        score = 0
-        score += len(set(jogo) & set(base[:10])) * 2
-        score += len(set(jogo) & set(atrasadas[:10])) * 1.5
-        score += len(set(jogo) & set(faltantes)) * 2
+        jogo = sorted(jogo)
 
-        if score > melhor_score:
-            melhor_score = score
-            melhor = jogo
-
-    return melhor
+        if jogo_valido(jogo):
+            return jogo
 
 # =========================
 # LABORATÓRIO
