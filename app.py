@@ -2,9 +2,9 @@ import streamlit as st
 import pandas as pd
 import random
 
-st.set_page_config(page_title="IA Loteria PRO", layout="centered")
+st.set_page_config(page_title="IA Loteria PRO+", layout="centered")
 
-st.title("🎯 IA Loteria Profissional PRO")
+st.title("🎯 IA Loteria PRO+ Inteligente")
 
 # =========================
 # CICLO
@@ -47,13 +47,22 @@ def frequencia(df):
     return ordenado
 
 # =========================
-# GERAR JOGO
+# GERAR JOGO INTELIGENTE
 # =========================
-def gerar_jogo(base, faltantes):
+def gerar_jogo(base, faltantes, fase):
     jogo = set()
 
-    jogo.update(base[:10])
-    jogo.update(faltantes)
+    if fase == "INÍCIO":
+        jogo.update(base[:12])
+        jogo.update(random.sample(faltantes, min(3, len(faltantes))))
+
+    elif fase == "MEIO":
+        jogo.update(base[:10])
+        jogo.update(random.sample(faltantes, min(5, len(faltantes))))
+
+    else:  # FINAL
+        jogo.update(base[:8])
+        jogo.update(random.sample(faltantes, min(7, len(faltantes))))
 
     pool = list(set(range(1, 26)) - jogo)
 
@@ -63,18 +72,14 @@ def gerar_jogo(base, faltantes):
     return sorted(jogo)
 
 # =========================
-# AVALIAR JOGO
+# PONTUAÇÃO
 # =========================
 def pontuar(jogo, base, faltantes):
     score = 0
 
-    # fortes
     score += len(set(jogo) & set(base[:10])) * 2
-
-    # faltantes
     score += len(set(jogo) & set(faltantes)) * 3
 
-    # pares/ímpares equilibrado
     pares = sum(1 for n in jogo if n % 2 == 0)
     if 6 <= pares <= 9:
         score += 5
@@ -84,11 +89,11 @@ def pontuar(jogo, base, faltantes):
 # =========================
 # GERAR RANKING
 # =========================
-def gerar_rankeados(base, faltantes, qtd=20):
+def gerar_rankeados(base, faltantes, fase, qtd=30):
     jogos = []
 
     for _ in range(qtd):
-        jogo = gerar_jogo(base, faltantes)
+        jogo = gerar_jogo(base, faltantes, fase)
         score = pontuar(jogo, base, faltantes)
         jogos.append((jogo, score))
 
@@ -125,10 +130,10 @@ if arquivo is not None:
     st.subheader("❄️ Dezenas mais fracas")
     st.write(base[-10:])
 
-    if st.button("🔥 Gerar jogos PRO"):
-        top = gerar_rankeados(base, faltantes)
+    if st.button("🔥 Gerar jogos PRO+"):
+        top = gerar_rankeados(base, faltantes, fase)
 
-        st.subheader("🏆 Melhores jogos")
+        st.subheader("🏆 Melhores jogos otimizados")
 
         for i, (jogo, score) in enumerate(top, 1):
             st.write(f"Jogo {i}: {jogo} | Score: {score}")
