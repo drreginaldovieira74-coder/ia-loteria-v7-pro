@@ -68,22 +68,20 @@ def jogo_valido(jogo, modo="seguro"):
 # =========================
 # GERADOR MELHORADO
 # =========================
-def gerar_jogo(base, atrasadas, faltantes):
+
+   gerar_jogo(df, base, atrasadas, faltantes)
     tentativas = 0
+
+    ultimo = df.iloc[-1].dropna().astype(int).tolist()
 
     while True:
         jogo = set()
 
-        # BASE FORTE
-        jogo.update(base[:10])
+        # 🔥 REPETIÇÃO CONTROLADA (FORTE)
+        repetidas = random.sample(ultimo, 9)
+        jogo.update(repetidas)
 
-        # ATRASADAS IMPORTANTES
-        jogo.update(atrasadas[:5])
-
-        # FALTANTES
-        jogo.update(faltantes[:2])
-
-        # POOL INTELIGENTE (NÃO MAIS ALEATÓRIO PURO)
+        # COMPLEMENTO INTELIGENTE
         pool = list(set(base[:15] + atrasadas[:10] + faltantes))
 
         while len(jogo) < 15:
@@ -92,26 +90,6 @@ def gerar_jogo(base, atrasadas, faltantes):
         jogo = sorted(jogo)
 
         if jogo_valido(jogo, modo="agressivo"):
-            return jogo
-
-        tentativas += 1
-        if tentativas > 100:
-            return sorted(random.sample(pool, 15))
-    tentativas = 0
-
-    while True:
-        jogo = set()
-
-        jogo.update(base[:9])
-        jogo.update(atrasadas[:4])
-        jogo.update(faltantes[:2])
-
-        while len(jogo) < 15:
-            jogo.add(random.randint(1, 25))
-
-        jogo = sorted(jogo)
-
-        if jogo_valido(jogo):
             return jogo
 
         tentativas += 1
