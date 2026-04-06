@@ -2,12 +2,24 @@ import streamlit as st
 import pandas as pd
 import random
 
-st.set_page_config(page_title="IA Loteria ULTRA", layout="centered")
-
-st.title("🎯 IA Loteria ULTRA (Auto-Aprendizado)")
+st.set_page_config(page_title="IA Loteria ELITE", layout="wide")
 
 # =========================
-# CICLO
+# ESTILO
+# =========================
+st.markdown("""
+<style>
+.main {background-color: #0e1117;}
+h1, h2, h3 {color: #00ffcc;}
+.stButton>button {background-color: #00ffcc; color: black; font-weight: bold;}
+</style>
+""", unsafe_allow_html=True)
+
+st.title("🎯 IA Loteria ELITE")
+st.markdown("Sistema profissional de análise e geração inteligente")
+
+# =========================
+# FUNÇÕES
 # =========================
 def analisar_ciclo(df):
     todos = set(range(1, 26))
@@ -23,9 +35,6 @@ def analisar_ciclo(df):
 
     return fase, faltantes
 
-# =========================
-# FREQUÊNCIA
-# =========================
 def frequencia(df):
     freq = {n: 0 for n in range(1, 26)}
     for _, row in df.iterrows():
@@ -33,9 +42,6 @@ def frequencia(df):
             freq[int(n)] += 1
     return sorted(freq, key=freq.get, reverse=True)
 
-# =========================
-# ATRASO
-# =========================
 def atraso(df):
     atraso = {n: 0 for n in range(1, 26)}
     rev = df.iloc[::-1]
@@ -48,12 +54,8 @@ def atraso(df):
 
     return sorted(atraso, key=atraso.get, reverse=True)
 
-# =========================
-# GERAR JOGO
-# =========================
-def gerar_jogo(base, atrasadas, faltantes, fase):
+def gerar_jogo(base, atrasadas, faltantes):
     jogo = set()
-
     jogo.update(base[:8])
     jogo.update(atrasadas[:4])
     jogo.update(faltantes[:3])
@@ -64,66 +66,57 @@ def gerar_jogo(base, atrasadas, faltantes, fase):
     return sorted(jogo)
 
 # =========================
-# PONTUAÇÃO
+# UPLOAD
 # =========================
-def pontuar(jogo, base, atrasadas, pb, pa):
-    score = 0
-    score += len(set(jogo) & set(base[:10])) * pb
-    score += len(set(jogo) & set(atrasadas[:10])) * pa
-    return score
+arquivo = st.file_uploader("📂 Envie seu CSV da Lotofácil")
 
-# =========================
-# BACKTEST PARA APRENDER
-# =========================
-def otimizar(df):
-    melhores = (0, 0, 0)
-
-    for pb in range(1, 5):
-        for pa in range(1, 5):
-            resultados = []
-
-            for i in range(30, len(df)-1):
-                passado = df.iloc[:i]
-                futuro = set(df.iloc[i].dropna().astype(int))
-
-                fase, faltantes = analisar_ciclo(passado)
-                base = frequencia(passado)
-                atrasadas = atraso(passado)
-
-                jogo = gerar_jogo(base, atrasadas, faltantes, fase)
-
-                acertos = len(set(jogo) & futuro)
-                resultados.append(acertos)
-
-            media = sum(resultados)/len(resultados)
-
-            if media > melhores[2]:
-                melhores = (pb, pa, media)
-
-    return melhores
-
-# =========================
-# EXECUÇÃO
-# =========================
-arquivo = st.file_uploader("📂 Envie o CSV")
-
-if arquivo is not None:
+if arquivo:
     df = pd.read_csv(arquivo)
 
+    fase, faltantes = analisar_ciclo(df)
     base = frequencia(df)
     atrasadas = atraso(df)
-    fase, faltantes = analisar_ciclo(df)
 
-    if st.button("🧠 Treinar IA"):
-        pb, pa, media = otimizar(df)
-        st.success(f"Melhores pesos → Base: {pb} | Atraso: {pa}")
-        st.write(f"Média histórica: {round(media,2)}")
+    # =========================
+    # DASHBOARD
+    # =========================
+    col1, col2, col3 = st.columns(3)
 
-    if st.button("🔥 Gerar com IA treinada"):
-        pb, pa, _ = otimizar(df)
+    col1.metric("📊 Fase do Ciclo", fase)
+    col2.metric("🔥 Fortes", len(base[:10]))
+    col3.metric("⏳ Atrasadas", len(atrasadas[:10]))
 
-        jogo = gerar_jogo(base, atrasadas, faltantes, fase)
-        score = pontuar(jogo, base, atrasadas, pb, pa)
+    st.markdown("---")
 
-        st.write(jogo)
-        st.write(f"Score: {score}")
+    # =========================
+    # INFORMAÇÕES
+    # =========================
+    colA, colB = st.columns(2)
+
+    with colA:
+        st.subheader("🔥 Dezenas Fortes")
+        st.write(base[:10])
+
+    with colB:
+        st.subheader("⏳ Atrasadas")
+        st.write(atrasadas[:10])
+
+    st.subheader("🎯 Faltantes do Ciclo")
+    st.write(faltantes)
+
+    st.markdown("---")
+
+    # =========================
+    # BOTÃO PRINCIPAL
+    # =========================
+    if st.button("🚀 Gerar Jogos Profissionais"):
+        st.subheader("🏆 Jogos Gerados")
+
+        for i in range(5):
+            jogo = gerar_jogo(base, atrasadas, faltantes)
+
+            st.markdown(f"""
+            <div style='background-color:#1c1f26;padding:15px;border-radius:10px;margin-bottom:10px'>
+            <b>Jogo {i+1}:</b> {jogo}
+            </div>
+            """, unsafe_allow_html=True)
