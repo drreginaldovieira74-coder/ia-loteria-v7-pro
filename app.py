@@ -46,32 +46,22 @@ def atraso(df):
 # =========================
 # FILTRO PROFISSIONAL
 # =========================
-def jogo_valido(jogo):
+def jogo_valido(jogo, modo="seguro"):
     soma = sum(jogo)
-    if soma < 180 or soma > 220:
-        return False
 
     pares = sum(1 for n in jogo if n % 2 == 0)
-    if pares < 6 or pares > 9:
-        return False
 
-    # distribuição por grupos (1-5, 6-10...)
-    grupos = [0]*5
-    for n in jogo:
-        grupos[(n-1)//5] += 1
+    if modo == "seguro":
+        if not (180 <= soma <= 220):
+            return False
+        if not (6 <= pares <= 9):
+            return False
 
-    # evita concentração
-    if any(g > 5 for g in grupos):
-        return False
-
-    return True
-    soma = sum(jogo)
-    if soma < 170 or soma > 230:
-        return False
-
-    pares = sum(1 for n in jogo if n % 2 == 0)
-    if pares < 5 or pares > 10:
-        return False
+    else:  # agressivo
+        if not (170 <= soma <= 230):
+            return False
+        if not (5 <= pares <= 10):
+            return False
 
     return True
 
@@ -101,7 +91,7 @@ def gerar_jogo(base, atrasadas, faltantes):
 
         jogo = sorted(jogo)
 
-        if jogo_valido(jogo):
+        if jogo_valido(jogo, modo="agressivo"):
             return jogo
 
         tentativas += 1
