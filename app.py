@@ -2,121 +2,179 @@ import streamlit as st
 import pandas as pd
 import random
 
-st.set_page_config(page_title="IA Loteria ELITE", layout="wide")
+st.set_page_config(page_title="IA Loteria Profissional", layout="wide")
+
+st.title("🤖 IA Loteria Profissional")
 
 # =========================
-# ESTILO
+# UPLOAD
 # =========================
-st.markdown("""
-<style>
-.main {background-color: #0e1117;}
-h1, h2, h3 {color: #00ffcc;}
-.stButton>button {background-color: #00ffcc; color: black; font-weight: bold;}
-</style>
-""", unsafe_allow_html=True)
-
-st.title("🎯 IA Loteria ELITE")
-st.markdown("Sistema profissional de análise e geração inteligente")
+arquivo = st.file_uploader("📂 Envie o CSV da Lotofácil", type=["csv"])
 
 # =========================
 # FUNÇÕES
 # =========================
 def analisar_ciclo(df):
-    todos = set(range(1, 26))
-    ciclo = set()
+    numeros = set(range(1, 26))
+    sorteados = set(df.values.flatten())
+    faltantes = list(numeros - sorteados)
 
-    for i in range(len(df)-1, -1, -1):
-        ciclo |= set(df.iloc[i].dropna().astype(int))
-        if ciclo == todos:
-            break
+    progresso = len(sorteados) / 25
 
-    faltantes = list(todos - ciclo)
-    fase = "FINAL" if len(ciclo) > 20 else "MEIO"
+    if progresso < 0.4:
+        fase = "Início"
+    elif progresso < 0.8:
+        fase = "Meio"
+    else:
+        fase = "Final"
 
     return fase, faltantes
 
 def frequencia(df):
-    freq = {n: 0 for n in range(1, 26)}
-    for _, row in df.iterrows():
-        for n in row.dropna():
-            freq[int(n)] += 1
-    return sorted(freq, key=freq.get, reverse=True)
+    freq = df.stack().value_counts()
+    return list(freq.index)
 
 def atraso(df):
-    atraso = {n: 0 for n in range(1, 26)}
-    rev = df.iloc[::-1]
+    ultimo = {}
+    for i, row in df.iterrows():
+        for num in row:
+            ultimo[num] = i
 
-    for n in range(1, 26):
-        for i, row in enumerate(rev.itertuples(index=False)):
-            if n in row:
-                atraso[n] = i
-                break
-
+    atraso = {num: len(df) - ultimo.get(num, 0) for num in range(1,26)}
     return sorted(atraso, key=atraso.get, reverse=True)
 
+def gerar_pool(base, atrasadas, faltantes):
+    pool = set()
+    pool.update(base[:12])
+    pool.update(atrasadas[:8])
+    pool.update(faltantes[:5])
+    pool = list(pool)
+
+    if len(pool) < 15:
+        pool = list(range(1, 26))
+
+    return pool
+
 def gerar_jogo(base, atrasadas, faltantes):
-    jogo = set()
-    jogo.update(base[:8])
-    jogo.update(atrasadas[:4])
-    jogo.update(faltantes[:3])
+    pool = gerar_pool(base, atrasadas, faltantes)
+    return sorted(random.sample(pool, 15))
 
-    while len(jogo) < 15:
-        jogo.add(random.randint(1, 25))
+def melhor_jogo(base, atrasadas, faltantes):
+    melhor = None
+    melhor_score = -1
 
-    return sorted(jogo)
+    for _ in range(100):
+        jogo = gerar_jogo(base, atrasadas, faltantes)
+
+        score = 0
+        score += len(set(jogo) & set(base[:10])) * 2
+        score += len(set(jogo) & set(atrasadas[:10])) * 1.5
+        score += len(set(jogo) & set(faltantes)) * 2
+
+        if score > melhor_score:
+            melhor_score = score
+            melhor = jogo
+
+    return melhor
 
 # =========================
-# UPLOAD
+# LABORATÓRIO
 # =========================
-arquivo = st.file_uploader("📂 Envie seu CSV da Lotofácil")
+def contar_acertos(jogo, resultado_real):
+    return len(set(jogo) & set(resultado_real))
 
-if arquivo:
+def gerar_jogo_lab(base, atrasadas, faltantes):
+    pool = gerar_pool(base, atrasadas, faltantes)
+    k = min(15, len(pool))
+    return sorted(random.sample(pool, k))
+
+def rodar_backtest(df, janela=100):
+    resultados = []
+
+    inicio = max(30, len(df) - janela)
+
+    for i in range(inicio, len(df)-1):
+        passado = df.iloc[:i]
+        futuro = df.iloc[i].dropna().astype(int).tolist()
+
+        fase, faltantes = analisar_ciclo(passado)
+        base = frequencia(passado)
+        atrasadas = atraso(passado)
+
+        jogo = gerar_jogo_lab(base, atrasadas, faltantes)
+        acertos = contar_acertos(jogo, futuro)
+
+        resultados.append(acertos)
+
+    if not resultados:
+        return None
+
+    media = sum(resultados) / len(resultados)
+    melhor = max(resultados)
+    pior = min(resultados)
+    dist = {i: resultados.count(i) for i in range(10, 16)}
+
+    return {
+        "media": round(media, 2),
+        "melhor": melhor,
+        "pior": pior,
+        "total": len(resultados),
+        "dist": dist
+    }
+
+# =========================
+# EXECUÇÃO
+# =========================
+if arquivo is not None:
     df = pd.read_csv(arquivo)
+
+    st.success("Arquivo carregado com sucesso!")
+    st.dataframe(df)
 
     fase, faltantes = analisar_ciclo(df)
     base = frequencia(df)
     atrasadas = atraso(df)
 
-    # =========================
-    # DASHBOARD
-    # =========================
-    col1, col2, col3 = st.columns(3)
+    st.subheader("📊 Análise do Ciclo")
+    st.write(f"Fase atual: {fase}")
+    st.write(f"Dezenas faltantes: {faltantes}")
 
-    col1.metric("📊 Fase do Ciclo", fase)
-    col2.metric("🔥 Fortes", len(base[:10]))
-    col3.metric("⏳ Atrasadas", len(atrasadas[:10]))
+    st.subheader("🎯 Gerador Inteligente")
 
-    st.markdown("---")
-
-    # =========================
-    # INFORMAÇÕES
-    # =========================
-    colA, colB = st.columns(2)
-
-    with colA:
-        st.subheader("🔥 Dezenas Fortes")
-        st.write(base[:10])
-
-    with colB:
-        st.subheader("⏳ Atrasadas")
-        st.write(atrasadas[:10])
-
-    st.subheader("🎯 Faltantes do Ciclo")
-    st.write(faltantes)
-
-    st.markdown("---")
-
-    # =========================
-    # BOTÃO PRINCIPAL
-    # =========================
-    if st.button("🚀 Gerar Jogos Profissionais"):
-        st.subheader("🏆 Jogos Gerados")
-
+    if st.button("Gerar 5 jogos"):
         for i in range(5):
             jogo = gerar_jogo(base, atrasadas, faltantes)
+            st.write(f"Jogo {i+1}: {jogo}")
 
-            st.markdown(f"""
-            <div style='background-color:#1c1f26;padding:15px;border-radius:10px;margin-bottom:10px'>
-            <b>Jogo {i+1}:</b> {jogo}
-            </div>
-            """, unsafe_allow_html=True)
+    if st.button("🔥 Melhor jogo (IA)"):
+        jogo = melhor_jogo(base, atrasadas, faltantes)
+        st.success(jogo)
+
+    # =========================
+    # LABORATÓRIO UI
+    # =========================
+    st.markdown("---")
+    st.markdown("## 🧪 Modo Laboratório")
+
+    janela = st.slider("Concursos para teste", 50, 300, 100)
+
+    if st.button("🚀 Rodar Teste"):
+        resultado = rodar_backtest(df, janela)
+
+        if resultado:
+            st.success("Teste concluído!")
+
+            c1, c2, c3, c4 = st.columns(4)
+            c1.metric("Média", resultado["media"])
+            c2.metric("Melhor", resultado["melhor"])
+            c3.metric("Pior", resultado["pior"])
+            c4.metric("Testes", resultado["total"])
+
+            st.write("Distribuição:", resultado["dist"])
+
+            if resultado["media"] >= 11.5:
+                st.success("Sistema FORTE")
+            elif resultado["media"] >= 11:
+                st.info("Sistema BOM")
+            else:
+                st.warning("Precisa melhorar")
