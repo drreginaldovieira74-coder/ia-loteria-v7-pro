@@ -66,6 +66,34 @@ def gerar_jogo(base, atrasadas, faltantes):
     while True:
         jogo = set()
 
+        # BASE FORTE
+        jogo.update(base[:10])
+
+        # ATRASADAS IMPORTANTES
+        jogo.update(atrasadas[:5])
+
+        # FALTANTES
+        jogo.update(faltantes[:2])
+
+        # POOL INTELIGENTE (NÃO MAIS ALEATÓRIO PURO)
+        pool = list(set(base[:15] + atrasadas[:10] + faltantes))
+
+        while len(jogo) < 15:
+            jogo.add(random.choice(pool))
+
+        jogo = sorted(jogo)
+
+        if jogo_valido(jogo):
+            return jogo
+
+        tentativas += 1
+        if tentativas > 100:
+            return sorted(random.sample(pool, 15))
+    tentativas = 0
+
+    while True:
+        jogo = set()
+
         jogo.update(base[:9])
         jogo.update(atrasadas[:4])
         jogo.update(faltantes[:2])
