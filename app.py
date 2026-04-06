@@ -1,3 +1,11 @@
+import streamlit as st
+
+st.title("🎯 IA Loteria")
+
+arquivo = st.file_uploader("📂 Envie o CSV da Lotofácil")
+
+if arquivo is not None:
+    st.write("Arquivo carregado com sucesso!")
 if arquivo is not None:
 
     df = pd.read_csv(arquivo)
