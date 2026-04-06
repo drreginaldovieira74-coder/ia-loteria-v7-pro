@@ -2,9 +2,9 @@ import streamlit as st
 import pandas as pd
 import random
 
-st.set_page_config(page_title="IA Loteria", layout="centered")
+st.set_page_config(page_title="IA Loteria PRO", layout="centered")
 
-st.title("🎯 IA Loteria Profissional")
+st.title("🎯 IA Loteria Profissional PRO")
 
 # =========================
 # CICLO
@@ -47,24 +47,54 @@ def frequencia(df):
     return ordenado
 
 # =========================
-# GERAR JOGO INTELIGENTE
+# GERAR JOGO
 # =========================
 def gerar_jogo(base, faltantes):
     jogo = set()
 
-    # pega 10 mais fortes
     jogo.update(base[:10])
-
-    # adiciona faltantes (se houver)
     jogo.update(faltantes)
 
-    # completa até 15
     pool = list(set(range(1, 26)) - jogo)
 
     while len(jogo) < 15:
         jogo.add(random.choice(pool))
 
     return sorted(jogo)
+
+# =========================
+# AVALIAR JOGO
+# =========================
+def pontuar(jogo, base, faltantes):
+    score = 0
+
+    # fortes
+    score += len(set(jogo) & set(base[:10])) * 2
+
+    # faltantes
+    score += len(set(jogo) & set(faltantes)) * 3
+
+    # pares/ímpares equilibrado
+    pares = sum(1 for n in jogo if n % 2 == 0)
+    if 6 <= pares <= 9:
+        score += 5
+
+    return score
+
+# =========================
+# GERAR RANKING
+# =========================
+def gerar_rankeados(base, faltantes, qtd=20):
+    jogos = []
+
+    for _ in range(qtd):
+        jogo = gerar_jogo(base, faltantes)
+        score = pontuar(jogo, base, faltantes)
+        jogos.append((jogo, score))
+
+    jogos.sort(key=lambda x: x[1], reverse=True)
+
+    return jogos[:5]
 
 # =========================
 # UPLOAD
@@ -80,7 +110,6 @@ if arquivo is not None:
     st.success("Arquivo carregado!")
     st.write(df.head())
 
-    # CICLO
     concursos, fase, faltantes = analisar_ciclo(df)
 
     st.subheader("📊 Análise do Ciclo")
@@ -88,7 +117,6 @@ if arquivo is not None:
     st.write(f"Fase atual: {fase}")
     st.write(f"Dezenas faltantes: {faltantes}")
 
-    # FREQUÊNCIA
     base = frequencia(df)
 
     st.subheader("🔥 Dezenas mais fortes")
@@ -97,14 +125,10 @@ if arquivo is not None:
     st.subheader("❄️ Dezenas mais fracas")
     st.write(base[-10:])
 
-    # BOTÃO IA
-    if st.button("🔥 Gerar jogo inteligente"):
-        jogo = gerar_jogo(base, faltantes)
+    if st.button("🔥 Gerar jogos PRO"):
+        top = gerar_rankeados(base, faltantes)
 
-        st.subheader("🎯 Jogo gerado")
-        st.write(jogo)
+        st.subheader("🏆 Melhores jogos")
 
-        pares = sum(1 for n in jogo if n % 2 == 0)
-        impares = 15 - pares
-
-        st.write(f"Pares: {pares} | Ímpares: {impares}")
+        for i, (jogo, score) in enumerate(top, 1):
+            st.write(f"Jogo {i}: {jogo} | Score: {score}")
