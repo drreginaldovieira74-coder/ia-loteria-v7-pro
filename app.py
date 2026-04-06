@@ -1,5 +1,8 @@
 import streamlit as st
 import pandas as pd
+
+st.title("🎯 IA Loteria Profissional")
+
 def analisar_ciclo(df):
     todos = set(range(1, 26))
     ciclo = set()
@@ -23,14 +26,7 @@ def analisar_ciclo(df):
         fase = "FINAL"
 
     return concursos, fase, faltantes
-    if arquivo is not None:
-       concursos, fase, faltantes = analisar_ciclo(df)
 
-st.subheader("📊 Análise do Ciclo")
-st.write(f"Concursos no ciclo: {concursos}")
-st.write(f"Fase atual: {fase}")
-st.write(f"Dezenas faltantes: {faltantes}") 
-st.title("🎯 IA Loteria Profissional")
 
 arquivo = st.file_uploader("📂 Envie o CSV da Lotofácil")
 
@@ -39,3 +35,10 @@ if arquivo is not None:
 
     st.success("Arquivo carregado!")
     st.write(df.head())
+
+    concursos, fase, faltantes = analisar_ciclo(df)
+
+    st.subheader("📊 Análise do Ciclo")
+    st.write(f"Concursos no ciclo: {concursos}")
+    st.write(f"Fase atual: {fase}")
+    st.write(f"Dezenas faltantes: {faltantes}")
