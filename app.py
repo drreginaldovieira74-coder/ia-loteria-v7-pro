@@ -1,11 +1,4 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="UTF-8">
-    <title>IA LOTOFÁCIL ELITE v5.0 – ULTRA PRO</title>
-</head>
-<body>
-<pre><code>import streamlit as st
+import streamlit as st
 import pandas as pd
 import numpy as np
 import torch
@@ -14,7 +7,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 from collections import defaultdict, Counter
 import random
-from typing import List, Tuple, Dict, Any
+from typing import List, Tuple, Dict
 import warnings
 warnings.filterwarnings("ignore")
 
@@ -60,32 +53,25 @@ if arquivo is None:
 def carregar_e_validar_csv(arquivo) -> pd.DataFrame:
     df = pd.read_csv(arquivo)
     
-    # Validação profissional
     if len(df.columns) < 15:
         st.error("❌ O CSV precisa ter pelo menos 15 colunas (as 15 dezenas)")
         st.stop()
     
     df_dezenas = df.iloc[:, :15].copy()
     
-    # Converter para int
     try:
         df_dezenas = df_dezenas.astype(int)
     except:
         st.error("❌ Todas as dezenas devem ser números inteiros")
         st.stop()
     
-    # Verificar range
     if not ((df_dezenas >= 1) & (df_dezenas <= 25)).all().all():
         st.error("❌ Todas as dezenas devem estar entre 1 e 25")
         st.stop()
     
-    # Verificar duplicatas na mesma linha
     duplicatas = df_dezenas.apply(lambda row: len(set(row)) != 15, axis=1).sum()
     if duplicatas > 0:
         st.warning(f"⚠️ {duplicatas} concursos com dezenas repetidas foram encontrados e corrigidos")
-        for idx in df_dezenas.index:
-            if len(set(df_dezenas.iloc[idx])) != 15:
-                df_dezenas.iloc[idx] = sorted(set(df_dezenas.iloc[idx]))[:15]
     
     st.success(f"✅ {len(df)} concursos carregados e validados com sucesso!")
     return df_dezenas
@@ -94,7 +80,7 @@ df = carregar_e_validar_csv(arquivo)
 
 # ========================= CICLO ELITE =========================
 def detectar_ciclo_elite(df: pd.DataFrame) -> Tuple[str, List[int]]:
-    historico = df.iloc[-20:].values  # últimas 20 para análise mais estável
+    historico = df.iloc[-20:].values
     set_total = set(np.concatenate(historico))
     faltantes = sorted(set(range(1, 26)) - set_total)
     
@@ -126,9 +112,8 @@ with tab1:
     col2.metric("**Dezenas Faltantes**", f"**{len(faltantes)}**", ", ".join(map(str, faltantes[:10])))
     col3.metric("**Concursos Analisados**", f"{len(df)}")
     
-    # Gráfico de cobertura
     cobertura = [len(set(np.concatenate(df.iloc[:i+1].values))) for i in range(len(df))]
-    fig_ciclo = px.line(y=cobertura, title="Evolução da Cobertura de Dezenas (Últimos 25 números)")
+    fig_ciclo = px.line(y=cobertura, title="Evolução da Cobertura de Dezenas")
     fig_ciclo.update_layout(height=400)
     st.plotly_chart(fig_ciclo, use_container_width=True)
 
@@ -154,7 +139,6 @@ def treinar_lstm_pro(df: pd.DataFrame) -> LotofacilLSTM:
     optimizer = torch.optim.Adam(model.parameters(), lr=0.0015)
     criterion = nn.BCELoss()
     
-    # Preparação de sequências
     X, y = [], []
     seq_len = 6
     for i in range(len(df) - seq_len):
@@ -172,7 +156,7 @@ def treinar_lstm_pro(df: pd.DataFrame) -> LotofacilLSTM:
     X = torch.tensor(X, dtype=torch.float32)
     y = torch.tensor(y, dtype=torch.float32)
     
-    with st.spinner("🔥 Treinando LSTM Pro (3 camadas + dropout)..."):
+    with st.spinner("🔥 Treinando LSTM Pro..."):
         for epoch in range(50):
             optimizer.zero_grad()
             pred = model(X)
@@ -195,7 +179,7 @@ with tab2:
         st.info("Modelo com 3 camadas LSTM + Dropout 25%")
     
     if "model_lstm" in st.session_state:
-        st.success("✅ Modelo LSTM carregado e pronto para uso nos jogos!")
+        st.success("✅ Modelo LSTM carregado e pronto!")
 
 # ========================= TAB 3: GERAR JOGOS =========================
 def markov_transicao(df: pd.DataFrame) -> Dict[int, Dict[int, float]]:
@@ -206,7 +190,6 @@ def markov_transicao(df: pd.DataFrame) -> Dict[int, Dict[int, float]]:
         for n in atual:
             for m in prox - atual:
                 trans[n][m] += 1
-    # Normalizar
     for n in trans:
         total = sum(trans[n].values())
         if total > 0:
@@ -222,44 +205,32 @@ def frequencia_historica(df: pd.DataFrame) -> Dict[int, float]:
 
 def calcular_fitness(jogo: List[int], lstm_probs: np.ndarray, markov: Dict, freq: Dict, ultimos: List[int], faltantes: List[int]) -> float:
     score = 0.0
-    # LSTM
     score += sum(lstm_probs[n-1] for n in jogo) * peso_lstm
-    # Markov
     for n in jogo:
         for m in jogo:
             if n != m and m in markov.get(n, {}):
                 score += markov[n][m] * peso_markov
-    # Frequência
     score += sum(freq.get(n, 0) for n in jogo) * peso_frequencia
-    # Ciclo
     if fase == "FIM DE CICLO":
         score += len(set(jogo) & set(faltantes)) * 2.0 * peso_ciclo
-    # Diversidade (penaliza jogos muito parecidos com o último)
     intersecao = len(set(jogo) & set(ultimos))
     score -= intersecao * 0.8 * peso_diversidade
     return score
 
 def genetic_algorithm(lstm_probs: np.ndarray, markov: Dict, freq: Dict, ultimos: List[int], faltantes: List[int]) -> List[int]:
-    pop = []
-    for _ in range(pop_size):
-        jogo = random.sample(range(1, 26), 15)
-        pop.append(jogo)
+    pop = [random.sample(range(1, 26), 15) for _ in range(pop_size)]
     
     for gen in range(generations):
-        # Avaliar
         fitness = [calcular_fitness(ind, lstm_probs, markov, freq, ultimos, faltantes) for ind in pop]
-        # Seleção (elitismo)
         sorted_pop = [x for _, x in sorted(zip(fitness, pop), reverse=True)]
-        new_pop = sorted_pop[:pop_size//4]  # elitismo 25%
+        new_pop = sorted_pop[:pop_size//4]
         
-        # Crossover + mutação
         while len(new_pop) < pop_size:
             p1, p2 = random.sample(sorted_pop[:pop_size//2], 2)
             ponto = random.randint(5, 10)
             filho = p1[:ponto] + [x for x in p2 if x not in p1[:ponto]]
             if len(filho) > 15:
                 filho = filho[:15]
-            # Mutação
             if random.random() < 0.15:
                 idx = random.randrange(15)
                 novo = random.choice([x for x in range(1,26) if x not in filho])
@@ -267,7 +238,6 @@ def genetic_algorithm(lstm_probs: np.ndarray, markov: Dict, freq: Dict, ultimos:
             new_pop.append(sorted(filho))
         pop = new_pop
     
-    # Retorna o melhor
     best = max(pop, key=lambda x: calcular_fitness(x, lstm_probs, markov, freq, ultimos, faltantes))
     return sorted(best)
 
@@ -284,7 +254,6 @@ with tab3:
                 trans = markov_transicao(df)
                 freq = frequencia_historica(df)
                 
-                # Última sequência para LSTM
                 historico_bin = np.zeros((6, 25))
                 for j in range(6):
                     for num in df.iloc[-6 + j]:
@@ -300,14 +269,11 @@ with tab3:
                     jogos.append(jogo)
                 
                 df_jogos = pd.DataFrame(jogos, columns=[f"D{i+1}" for i in range(15)])
-                
-                # Score final
                 df_jogos["Score Elite"] = [calcular_fitness(j, probs_lstm, trans, freq, ultimos, faltantes) for j in jogos]
                 df_jogos = df_jogos.sort_values("Score Elite", ascending=False).reset_index(drop=True)
                 
                 st.dataframe(df_jogos.style.highlight_max(axis=0, color="#00ff88"), use_container_width=True)
                 
-                # Download
                 excel = df_jogos.to_excel(index=False)
                 st.download_button(
                     label="📥 Baixar todos os jogos em Excel",
@@ -319,17 +285,15 @@ with tab3:
 # ========================= TAB 4: BACKTEST =========================
 with tab4:
     st.subheader("📈 Backtest Histórico (Rolling Window)")
-    if st.button("Executar Backtest Completo (pode demorar)", type="secondary"):
-        with st.spinner("Rodando backtest com janela rolling..."):
+    if st.button("Executar Backtest Completo", type="secondary"):
+        with st.spinner("Rodando backtest..."):
             acertos = []
             hits_11 = hits_12 = hits_13 = hits_14 = 0
-            window = 6
             
-            for i in range(100, len(df) - 1):  # últimos 100 concursos
+            for i in range(100, len(df) - 1):
                 df_train = df.iloc[:i]
                 real = set(df.iloc[i])
                 
-                # Simula LSTM (usando modelo treinado, mas aqui usamos frequência simples para velocidade)
                 freq_train = frequencia_historica(df_train)
                 pred = sorted(freq_train, key=freq_train.get, reverse=True)[:15]
                 pred_set = set(pred)
@@ -353,7 +317,7 @@ with tab4:
             fig_back = px.histogram(acertos, nbins=15, title="Distribuição de Acertos no Backtest")
             st.plotly_chart(fig_back, use_container_width=True)
             
-            st.success(f"✅ Backtest concluído! Taxa de sucesso real estimada: **{media_acerto:.1f} dezenas** por jogo")
+            st.success(f"✅ Backtest concluído! Taxa média: **{media_acerto:.1f} dezenas** por jogo")
 
 # ========================= TAB 5: BANKROLL =========================
 with tab5:
@@ -369,20 +333,16 @@ with tab5:
             simulacoes = 10000
             concursos = 100
             
-            # EV baseado no backtest (ajustado para Lotofácil real)
-            ev_por_jogo = -2.50 * 0.85 + (50 * 0.12) + (500 * 0.035) + (15000 * 0.004) + (2000000 * 0.00008)
-            
             saldos = np.full(simulacoes, bank_inicial, dtype=float)
             
             for _ in range(concursos):
                 custo = qtd_simul * valor_aposta
-                # Ganhos realistas
                 ganhos = np.random.choice(
                     [0, 50, 500, 15000, 2000000],
                     size=simulacoes,
                     p=[0.68, 0.22, 0.075, 0.024, 0.001]
                 )
-                saldo_novo = saldos - custo + (ganhos * (qtd_simul / 20))  # escala realista
+                saldo_novo = saldos - custo + (ganhos * (qtd_simul / 20))
                 saldos = np.maximum(saldo_novo, 0)
             
             fig_bank = go.Figure()
@@ -395,7 +355,4 @@ with tab5:
             st.balloons()
             st.success(f"**Projeção final (mediana):** R$ {np.median(saldos):,.0f}")
 
-st.caption("IA LOTOFÁCIL ELITE v5.0 • Desenvolvido com ❤️ para máxima performance • 2026")
-</code></pre>
-</body>
-</html>
+st.caption("IA LOTOFÁCIL ELITE v5.0 • Ultra Profissional • 2026")
