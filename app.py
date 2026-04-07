@@ -12,7 +12,36 @@ warnings.filterwarnings("ignore")
 
 # ========================= CONFIGURAÇÃO MERCADO PAGO =========================
 # ⚠️ COLOQUE SEU ACCESS TOKEN AQUI (Produção ou Teste)
-MERCADO_PAGO_ACCESS_TOKEN = "TEST-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+curl -X POST \
+
+      'https://api.mercadopago.com/preapproval_plan' \
+      -H 'Authorization: Bearer YOUR_ACCESS_TOKEN' \
+      -H 'Content-Type: application/json' \ 
+      -d '{
+  "reason": "Yoga classes",
+  "auto_recurring": {
+    "frequency": 1,
+    "frequency_type": "months",
+    "repetitions": 12,
+    "billing_day": 10,
+    "billing_day_proportional": true,
+    "free_trial": {
+      "frequency": 1,
+      "frequency_type": "months"
+    },
+    "transaction_amount": 10,
+    "currency_id": "ARS"
+  },
+  "payment_methods_allowed": {
+    "payment_types": [
+      {}
+    ],
+    "payment_methods": [
+      {}
+    ]
+  },
+  "back_url": "https://www.yoursite.com"
+}'
 
 mp = mercadopago.SDK(MERCADO_PAGO_ACCESS_TOKEN)
 
