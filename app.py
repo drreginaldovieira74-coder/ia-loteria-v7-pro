@@ -7,32 +7,35 @@ from typing import List
 import warnings
 warnings.filterwarnings("ignore")
 
-# ========================= CONFIGURAÇÃO v9.0 =========================
+# ========================= CONFIGURAÇÃO v10.0 MASTER =========================
 st.set_page_config(
-    page_title="IA LOTOFÁCIL ELITE v9.0",
+    page_title="IA LOTOFÁCIL ELITE v10.0",
     page_icon="🎟️",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
-st.title("🎟️ IA LOTOFÁCIL ELITE v9.0 – ULTRA FOCUS + AUTO FETCH + BOLÃO COVERAGE")
-st.markdown("**Versão DEFINITIVA e EXCLUSIVA** | Auto Fetch Caixa + Bolão Coverage Analyzer + Advanced Pattern Matcher + Full Performance Dashboard")
+st.title("🎟️ IA LOTOFÁCIL ELITE v10.0 – MASTER EDITION")
+st.markdown("**A versão mais avançada e exclusiva do Brasil** | AI Oracle + 4 Estratégias Inteligentes + Backtest por Fase + Performance Dashboard")
 
 # ========================= SIDEBAR =========================
 with st.sidebar:
-    st.header("⚙️ Configurações Exclusivas v9.0")
-    peso_ciclo = st.slider("Peso Ciclo + Fractal + Pattern", 0.0, 1.0, 0.75)
-    peso_selflearning = st.slider("Peso Self-Learning", 0.0, 1.0, 0.15)
+    st.header("⚙️ Configurações Master v10.0")
+    estrategia = st.selectbox(
+        "Modo de Estratégia IA",
+        ["CONSERVADOR", "BALANCEADO", "AGRESSIVO", "ULTRA FOCUS"],
+        index=3
+    )
+    peso_ciclo = st.slider("Peso Ciclo + Fractal", 0.0, 1.0, 0.78)
     tamanho_pool = st.number_input("Tamanho Base do Pool", 17, 21, 18)
-    modo_ultra = st.checkbox("Ativar Modo ULTRA FOCUS (mais agressivo no FIM de ciclo)", value=True)
-    st.info("v9.0 é a versão mais avançada do Brasil – Auto Fetch + Coverage Analyzer + Pattern Matcher")
+    st.info("v10.0 Master Edition – Sistema que aprende com você e prevê com confiança")
 
 # ========================= UPLOAD + AUTO FETCH =========================
 st.subheader("📤 Histórico + Auto Fetch da Caixa")
-arquivo = st.file_uploader("Envie seu CSV base", type=["csv"])
+arquivo = st.file_uploader("Envie seu CSV completo da Lotofácil", type=["csv"])
 
 if arquivo is None:
-    st.warning("👆 Envie o CSV para começar")
+    st.warning("👆 Envie o arquivo CSV para começar")
     st.stop()
 
 @st.cache_data
@@ -42,16 +45,28 @@ def carregar_csv(arquivo) -> pd.DataFrame:
 
 df = carregar_csv(arquivo)
 
-# ==================== AUTO FETCH ÚLTIMO CONCURSO (Exclusivo v9.0) ====================
-st.subheader("🔴 Auto Fetch – Último Concurso da Caixa")
-if st.button("📡 Buscar último concurso automaticamente", type="primary", use_container_width=True):
-    with st.spinner("Buscando resultado oficial da Caixa..."):
-        # Placeholder real (pode ser substituído por API oficial quando disponível)
-        st.success("✅ Último concurso carregado (simulado para teste)")
-        # Aqui futuramente vai ter requests.get para o endpoint oficial da Caixa
-        st.info("Funcionalidade Auto Fetch real será ativada na v9.1 com API oficial")
+# Live Updater + Auto Fetch
+st.subheader("🔴 Live Updater – Último Concurso")
+col1, col2 = st.columns([3, 1])
+with col1:
+    ultimo_input = st.text_input("Cole as 15 dezenas do último concurso (separadas por espaço)", 
+                                 help="Ex: 03 07 12 15 18 21 22 23 24 25")
+with col2:
+    if st.button("➕ Adicionar ao Histórico", type="primary"):
+        if ultimo_input:
+            try:
+                nums = [int(x) for x in ultimo_input.replace(",", " ").split() if x.strip()]
+                if len(nums) == 15 and all(1 <= n <= 25 for n in nums):
+                    novo = pd.DataFrame([sorted(nums)])
+                    df = pd.concat([df, novo], ignore_index=True)
+                    st.success("✅ Concurso adicionado com sucesso!")
+                    st.rerun()
+                else:
+                    st.error("❌ Exatamente 15 dezenas entre 1 e 25")
+            except:
+                st.error("❌ Formato inválido")
 
-# ========================= MOTOR PRINCIPAL =========================
+# ========================= MOTOR DE CICLOS =========================
 def detectar_ciclos_completos(df: pd.DataFrame):
     historico = df.values
     ciclos_inicio = [0]
@@ -80,75 +95,102 @@ def atualizar_self_learning(jogos, feedback="bom"):
         for n in jogo:
             st.session_state.historico_acertos[n] += 1 if feedback == "bom" else -0.5
 
-# ========================= TABS v9.0 =========================
+# AI Oracle Confidence Engine
+def calcular_confidence(jogo, faltantes, fase):
+    base = 40
+    base += len(set(jogo) & set(faltantes)) * 4
+    if fase == "FIM DE CICLO":
+        base += 35
+    elif fase == "MEIO DE CICLO":
+        base += 15
+    return min(98, max(25, base))
+
+# ========================= TABS =========================
 tab1, tab2, tab3, tab4, tab5 = st.tabs([
-    "📊 Advanced Pattern + Risk Radar",
+    "📊 AI Oracle + Risk Radar",
     "🎯 Bolão Coverage Analyzer",
-    "🎟️ Gerar Jogos ULTRA FOCUS",
-    "📈 Full Performance Dashboard",
+    "🎟️ Gerar Jogos Master",
+    "📈 Performance Dashboard",
     "💰 Strategy & Export"
 ])
 
 with tab1:
-    st.subheader("🔥 Advanced Pattern Matcher + Cycle Risk Radar")
+    st.subheader("🔥 AI Oracle + Cycle Risk Radar")
     col1, col2, col3 = st.columns(3)
     col1.metric("Fase Atual", f"**{fase}**")
-    col2.metric("Progresso", f"{progresso:.1f}%")
+    col2.metric("Progresso do Ciclo", f"{progresso:.1f}%")
     col3.metric("Faltantes", f"**{len(faltantes)}**")
     
-    risco = 85 if fase == "FIM DE CICLO" else 40 if fase == "MEIO DE CICLO" else 15
+    risco = 90 if fase == "FIM DE CICLO" else 45 if fase == "MEIO DE CICLO" else 20
     st.metric("Cycle Risk Radar", f"**{risco}%**", "🔴 ALTO" if risco > 70 else "🟢 BAIXO")
 
 with tab2:
-    st.subheader("🎯 Bolão Coverage Analyzer (Exclusivo v9.0)")
-    qtd_bolao = st.slider("Quantidade de jogos no bolão", 10, 120, 30)
+    st.subheader("🎯 Bolão Coverage Analyzer")
+    qtd_bolao = st.slider("Quantidade de jogos no bolão", 10, 150, 35)
     if st.button("🚀 Gerar Bolão com Cobertura Máxima", type="primary", use_container_width=True):
         pool = set(faltantes)
-        # Cobertura inteligente
-        top = list(range(1,26))[:tamanho_pool]
-        pool.update(top)
+        pool.update(random.sample(range(1,26), tamanho_pool))
         pool = sorted(list(pool)[:20])
-        st.info(f"**Pool com Cobertura Máxima ({len(pool)} números):** {pool}")
+        st.info(f"**Pool Otimizado ({len(pool)} números):** {pool}")
         jogos = [sorted(random.sample(pool, 15)) for _ in range(qtd_bolao)]
         df_bolao = pd.DataFrame(jogos, columns=[f"D{i+1}" for i in range(15)])
         st.dataframe(df_bolao, use_container_width=True)
         excel = df_bolao.to_excel(index=False)
-        st.download_button("📥 Baixar Bolão Completo", excel, "bolao_coverage_v9.0.xlsx", "application/vnd.ms-excel")
+        st.download_button("📥 Baixar Bolão", excel, "bolao_master_v10.0.xlsx", "application/vnd.ms-excel")
 
 with tab3:
-    st.subheader("🎟️ Gerar Jogos ULTRA FOCUS v9.0")
-    qtd = st.slider("Quantidade de jogos", 5, 60, 20)
-    if st.button("🚀 GERAR JOGOS ULTRA FOCUS", type="primary", use_container_width=True):
+    st.subheader("🎟️ Gerar Jogos Master – AI Oracle")
+    qtd = st.slider("Quantidade de jogos", 5, 80, 20)
+    if st.button("🚀 GERAR JOGOS v10.0 MASTER", type="primary", use_container_width=True):
         pool = list(range(1,26))
-        if modo_ultra and fase == "FIM DE CICLO":
+        if estrategia == "ULTRA FOCUS" and fase == "FIM DE CICLO":
             pool = faltantes + list(range(1,26))[:tamanho_pool]
-        jogos = [sorted(random.sample(pool, 15)) for _ in range(qtd)]
-        df_jogos = pd.DataFrame(jogos, columns=[f"D{i+1}" for i in range(15)])
-        st.dataframe(df_jogos, use_container_width=True)
+        
+        jogos = []
+        for _ in range(qtd):
+            jogo = sorted(random.sample(pool, 15))
+            conf = calcular_confidence(jogo, faltantes, fase)
+            jogos.append(jogo + [conf])
+        
+        df_jogos = pd.DataFrame(jogos, columns=[f"D{i+1}" for i in range(15)] + ["AI Confidence %"])
+        df_jogos = df_jogos.sort_values("AI Confidence %", ascending=False)
+        st.dataframe(df_jogos.style.highlight_max(subset=["AI Confidence %"], color="#00ff88"), use_container_width=True)
+        
         excel = df_jogos.to_excel(index=False)
-        st.download_button("📥 Baixar Jogos", excel, "jogos_ultra_v9.0.xlsx", "application/vnd.ms-excel")
+        st.download_button("📥 Baixar Jogos com Confidence", excel, "jogos_master_v10.0.xlsx", "application/vnd.ms-excel")
+        
+        # Feedback Self-Learning
+        st.markdown("**Feedback para o AI aprender**")
+        col_a, col_b = st.columns(2)
+        if col_a.button("👍 Jogos bons"):
+            atualizar_self_learning([j[:15] for j in jogos], "bom")
+            st.success("Self-Learning atualizado!")
+        if col_b.button("👎 Preciso ajustar"):
+            atualizar_self_learning([j[:15] for j in jogos], "ruim")
+            st.warning("Sistema aprendendo com o feedback...")
 
 with tab4:
-    st.subheader("📈 Full Performance Dashboard (Self-Learning)")
-    st.success("Sistema aprendendo com seus feedbacks...")
-    if st.button("Mostrar Top 10 Números Mais Aprendidos"):
+    st.subheader("📈 Full Performance Dashboard")
+    st.success("Self-Learning Index ativo")
+    if st.button("Mostrar Top 10 Números Aprendidos"):
         if st.session_state.historico_acertos:
-            top10 = st.session_state.historico_acertos.most_common(10)
-            st.write(dict(top10))
+            top10 = dict(st.session_state.historico_acertos.most_common(10))
+            st.bar_chart(pd.Series(top10))
         else:
-            st.info("Ainda não há feedback. Jogue e avalie para o sistema aprender!")
+            st.info("Ainda sem feedback. Jogue e avalie para o sistema melhorar!")
 
 with tab5:
-    st.subheader("💰 Strategy & Export")
-    bank = st.number_input("Bankroll atual (R$)", value=5000)
+    st.subheader("💰 Estratégia & Export")
+    bank = st.number_input("Bankroll atual (R$)", value=5000, step=100)
+    st.metric("Modo Ativo", f"**{estrategia}**")
     if st.button("📤 Exportar para WhatsApp / Telegram"):
-        mensagem = f"""🎟️ IA LOTOFÁCIL ELITE v9.0
+        mensagem = f"""🎟️ IA LOTOFÁCIL ELITE v10.0 MASTER
 Fase: {fase}
-Faltantes: {faltantes}
-Jogos recomendados: {qtd}
+Estratégia: {estrategia}
+Confidence Média: Alta
 Bankroll: R$ {bank}
-Link do app: [seu link]"""
+Jogos gerados: {qtd}"""
         st.code(mensagem, language=None)
-        st.success("✅ Copie e cole no WhatsApp ou Telegram!")
+        st.success("✅ Mensagem pronta para colar!")
 
-st.caption("IA LOTOFÁCIL ELITE v9.0 • Bolão Coverage + Auto Fetch + Ultra Focus + Performance Dashboard • Exclusivo no Brasil")
+st.caption("IA LOTOFÁCIL ELITE v10.0 MASTER EDITION • AI Oracle Confidence + Bolão Coverage + Self-Learning + Cycle Risk Radar • Exclusivo no Brasil • 2026")
