@@ -7,11 +7,11 @@ from typing import List, Dict
 import warnings
 warnings.filterwarnings("ignore")
 
-# ========================= v13.1 MULTI-LOTERIA – EVOLUÇÃO =========================
-st.set_page_config(page_title="IA LOTOFÁCIL ELITE v13.1", page_icon="🎟️", layout="wide")
+# ========================= v14.0 MULTI-LOTERIA – AJUSTES FINOS =========================
+st.set_page_config(page_title="IA LOTOFÁCIL ELITE v14.0", page_icon="🎟️", layout="wide")
 
-st.title("🎟️ IA LOTOFÁCIL ELITE v13.1 – MULTI-LOTERIA COMPLETA")
-st.markdown("**Agora com Loteria Federal, Loteria Milionária e Timemania** | Lotofácil 100% preservado")
+st.title("🎟️ IA LOTOFÁCIL ELITE v14.0 – MULTI-LOTERIA EVOLUÍDA")
+st.markdown("**Lotofácil 100% preservado + Ajustes finos na Milionária e Timemania**")
 
 # ========================= SELETOR DE LOTERIA =========================
 loteria_options = {
@@ -33,9 +33,12 @@ st.markdown(f"**Loteria ativa:** {config['nome']} ({config['sorteadas']} de {con
 
 # ========================= SIDEBAR =========================
 with st.sidebar:
-    st.header("⚙️ Configurações v13.1")
+    st.header("⚙️ Configurações v14.0")
     estrategia = st.selectbox("Modo de Estratégia IA", ["CONSERVADOR", "BALANCEADO", "AGRESSIVO", "ULTRA FOCUS"], index=3)
     tamanho_pool = st.number_input("Tamanho Base do Pool", 15, 30, 18)
+    if st.button("🔄 Limpar Cache"):
+        st.cache_data.clear()
+        st.rerun()
 
 # ========================= UPLOAD =========================
 st.subheader(f"📤 Upload do Histórico da {config['nome']}")
@@ -64,12 +67,12 @@ if len(df) == 0:
 
 st.success(f"✅ {len(df)} concursos carregados!")
 
-# ========================= MOTOR DE CICLO =========================
+# ========================= MOTOR DE CICLO v14.0 (com ajustes finos) =========================
 def detectar_ciclo(df: pd.DataFrame, config: Dict):
     if len(df) == 0:
         return "INÍCIO", list(range(1, config["total"]+1)), 0.0
 
-    if config["tipo_ciclo"] == "full":  # Lotofácil (100% preservado)
+    if config["tipo_ciclo"] == "full":  # Lotofácil – 100% preservado
         historico = df.values
         ciclos_inicio = [0]
         cobertura = set()
@@ -86,8 +89,11 @@ def detectar_ciclo(df: pd.DataFrame, config: Dict):
         fase = "INÍCIO" if progresso < 40 else "MEIO" if progresso < 80 else "FIM"
         return fase, faltantes, progresso
 
-    else:  # Todas as outras loterias
-        ultimos = df.iloc[-40:] if len(df) > 40 else df
+    else:  # Ajustes finos para Milionária e Timemania
+        if config["nome"] in ["Loteria Milionária", "Timemania"]:
+            ultimos = df.iloc[-45:] if len(df) > 45 else df   # janela maior para essas loterias
+        else:
+            ultimos = df.iloc[-40:] if len(df) > 40 else df
         todos = set(np.concatenate(ultimos.values))
         faltantes = sorted(set(range(1, config["total"]+1)) - todos)
         progresso = (config["total"] - len(faltantes)) / config["total"] * 100
@@ -96,7 +102,7 @@ def detectar_ciclo(df: pd.DataFrame, config: Dict):
 
 fase, faltantes, progresso = detectar_ciclo(df, config)
 
-# Self-Learning + Confidence
+# Self-Learning + Confidence v14.0 (ajustes finos)
 if "historico_acertos" not in st.session_state:
     st.session_state.historico_acertos = Counter()
 
@@ -105,19 +111,35 @@ def atualizar_self_learning(jogos, feedback="bom"):
         for n in jogo:
             st.session_state.historico_acertos[n] += 1 if feedback == "bom" else -0.5
 
-def calcular_confidence(jogo, faltantes, fase):
+def calcular_confidence(jogo: List[int], faltantes: List[int], fase: str, config: Dict):
     base = 48
     base += len(set(jogo) & set(faltantes)) * 5.5
-    if fase == "FIM": base += 42
-    elif fase == "MEIO": base += 22
-    if estrategia == "ULTRA FOCUS" and fase == "FIM": base += 20
+    
+    # Ajustes finos específicos
+    if config["nome"] == "Loteria Milionária":
+        base += 8 if fase == "FIM" else 3
+    elif config["nome"] == "Timemania":
+        base += 10 if fase == "FIM" else 4   # Timemania tem 7 números, então maior peso
+    
+    if fase == "FIM":
+        base += 42
+    elif fase == "MEIO":
+        base += 22
+    if estrategia == "ULTRA FOCUS" and fase == "FIM":
+        base += 20
+    
+    # Self-Learning
+    if st.session_state.historico_acertos:
+        boost = sum(st.session_state.historico_acertos.get(n, 0) for n in jogo) / len(jogo)
+        base += boost * 0.9
+    
     return min(99, max(35, int(base)))
 
 # ========================= TABS =========================
 tab1, tab2, tab3, tab4, tab5 = st.tabs([
     "📊 AI Oracle + Risk Radar",
     "🎯 Bolão Coverage",
-    "🎟️ Gerar Jogos v13.1",
+    "🎟️ Gerar Jogos v14.0",
     "📈 Performance Dashboard",
     "💰 Strategy & Export"
 ])
@@ -128,11 +150,13 @@ with tab1:
     col1.metric("Loteria", f"**{config['nome']}**")
     col2.metric("Fase", f"**{fase}**")
     col3.metric("Faltantes", f"**{len(faltantes)}**")
+    risco = 92 if fase == "FIM" else 52 if fase == "MEIO" else 30
+    st.metric("Cycle Risk Radar", f"**{risco}%**", "🔴" if risco > 70 else "🟢")
 
 with tab3:
-    st.subheader("🎟️ Gerar Jogos v13.1")
+    st.subheader("🎟️ Gerar Jogos v14.0")
     qtd = st.slider("Quantidade de jogos", 5, 80, 20)
-    if st.button("🚀 GERAR JOGOS v13.1", type="primary", use_container_width=True):
+    if st.button("🚀 GERAR JOGOS v14.0", type="primary", use_container_width=True):
         pool = list(range(1, config["total"]+1))
         if estrategia == "ULTRA FOCUS" and fase == "FIM":
             pool = faltantes + list(range(1, config["total"]+1))[:tamanho_pool]
@@ -140,7 +164,7 @@ with tab3:
         jogos = []
         for _ in range(qtd):
             jogo = sorted(random.sample(pool, config["sorteadas"]))
-            conf = calcular_confidence(jogo, faltantes, fase)
+            conf = calcular_confidence(jogo, faltantes, fase, config)
             jogos.append(jogo + [conf])
         
         df_jogos = pd.DataFrame(jogos, columns=[f"D{i+1}" for i in range(config["sorteadas"])] + ["AI Confidence %"])
@@ -148,8 +172,17 @@ with tab3:
         st.dataframe(df_jogos.style.highlight_max(subset=["AI Confidence %"], color="#00ff88"), use_container_width=True)
         
         excel = df_jogos.to_excel(index=False)
-        st.download_button("📥 Baixar Jogos com Confidence", excel, f"jogos_{config['nome']}_v13.1.xlsx", "application/vnd.ms-excel")
+        st.download_button("📥 Baixar Jogos com Confidence", excel, f"jogos_{config['nome']}_v14.0.xlsx", "application/vnd.ms-excel")
+        
+        st.markdown("**Feedback para Self-Learning**")
+        col_a, col_b = st.columns(2)
+        if col_a.button("👍 Jogos bons"):
+            atualizar_self_learning([j[:config["sorteadas"]] for j in jogos], "bom")
+            st.success("Self-Learning atualizado!")
+        if col_b.button("👎 Preciso ajustar"):
+            atualizar_self_learning([j[:config["sorteadas"]] for j in jogos], "ruim")
+            st.warning("Sistema aprendendo...")
 
 # (As outras abas permanecem iguais às da v13.0 – bolão, dashboard e export)
 
-st.caption("v13.1 • Lotofácil 100% preservado • Adicionadas Loteria Federal, Milionária e Timemania")
+st.caption("v14.0 • Lotofácil 100% preservado • Ajustes finos aplicados na Milionária e Timemania • Código mais inteligente")
