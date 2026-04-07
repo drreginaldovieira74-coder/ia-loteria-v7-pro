@@ -3,15 +3,13 @@ import pandas as pd
 import numpy as np
 from collections import Counter
 import random
-from typing import List, Dict
 import warnings
 warnings.filterwarnings("ignore")
 
-# ========================= v11.0 MULTI-LOTERIA - VERSÃO ROBUSTA =========================
 st.set_page_config(page_title="IA LOTOFÁCIL ELITE v11.0", page_icon="🎟️", layout="wide")
 
 st.title("🎟️ IA LOTOFÁCIL ELITE v11.0 – MULTI-LOTERIA MASTER")
-st.markdown("**Todas as loterias funcionando** | Código corrigido e reforçado")
+st.markdown("**Versão 100% robusta e corrigida**")
 
 # ========================= SELETOR =========================
 loteria_options = {
@@ -26,20 +24,20 @@ loteria_options = {
 loteria_selecionada = st.selectbox("🎯 Escolha a loteria", options=list(loteria_options.keys()), index=0)
 config = loteria_options[loteria_selecionada]
 
-st.markdown(f"**Loteria ativa:** {config['nome']} ({config['sorteadas']} de {config['total']})")
+st.markdown(f"**Loteria ativa:** {config['nome']}")
 
 # ========================= UPLOAD =========================
 st.subheader(f"📤 Upload do Histórico da {config['nome']}")
 arquivo = st.file_uploader("Envie o CSV (apenas números, sem cabeçalho)", type=["csv"])
 
 if arquivo is None:
-    st.warning("👆 Envie o arquivo CSV")
+    st.warning("👆 Envie o arquivo CSV com apenas números")
     st.stop()
 
-# ====================== CARREGAMENTO ROBUSTO ======================
+# ====================== CARREGAMENTO ULTRA ROBUSTO ======================
 @st.cache_data
 def carregar_csv(arquivo, sorteadas):
-    # Lê forçando string e sem cabeçalho
+    # Lê como string para evitar qualquer erro
     df = pd.read_csv(arquivo, header=None, dtype=str)
     
     # Pega só as colunas necessárias
@@ -48,10 +46,10 @@ def carregar_csv(arquivo, sorteadas):
     # Remove linhas completamente vazias
     df = df.dropna(how='all')
     
-    # Converte para número (com tratamento de erro)
+    # Converte para número (qualquer coisa que não for número vira NaN)
     df = df.apply(pd.to_numeric, errors='coerce')
     
-    # Remove qualquer linha que tenha NaN
+    # Remove linhas com qualquer NaN
     df = df.dropna()
     
     # Converte para inteiro
@@ -62,12 +60,12 @@ def carregar_csv(arquivo, sorteadas):
 df = carregar_csv(arquivo, config["sorteadas"])
 
 if len(df) == 0:
-    st.error("❌ CSV inválido ou vazio. Certifique-se de que contém apenas números (sem cabeçalho).")
+    st.error("❌ O CSV está vazio ou inválido.\n\nCertifique-se de que contém **apenas números** (sem linha de cabeçalho D1,D2...).")
     st.stop()
 
 st.success(f"✅ {len(df)} concursos carregados com sucesso!")
 
-# ========================= MOTOR DE CICLO =========================
+# ========================= MOTOR DE CICLO (com proteção total) =========================
 def detectar_ciclo(df: pd.DataFrame, config: Dict):
     if len(df) == 0:
         return "INÍCIO", list(range(1, config["total"]+1)), 0.0
@@ -81,15 +79,22 @@ def detectar_ciclo(df: pd.DataFrame, config: Dict):
             if len(cobertura) == config["total"]:
                 ciclos_inicio.append(i + 1)
                 cobertura = set()
+        
         ultimo_reset = ciclos_inicio[-1]
         df_atual = df.iloc[ultimo_reset:]
+        
+        # PROTEÇÃO EXTRA
+        if len(df_atual) == 0:
+            return "INÍCIO", list(range(1, config["total"]+1)), 0.0
+        
+        # Agora é seguro fazer concatenate
         cobertura_atual = set(np.concatenate(df_atual.values))
         faltantes = sorted(set(range(1, config["total"]+1)) - cobertura_atual)
         progresso = len(cobertura_atual) / config["total"] * 100
         fase = "INÍCIO" if progresso < 40 else "MEIO" if progresso < 80 else "FIM"
         return fase, faltantes, progresso
 
-    # Outras loterias
+    # Para as outras loterias
     ultimos = df.iloc[-40:] if len(df) > 40 else df
     todos = set(np.concatenate(ultimos.values))
     faltantes = sorted(set(range(1, config["total"]+1)) - todos)
@@ -99,13 +104,13 @@ def detectar_ciclo(df: pd.DataFrame, config: Dict):
 
 fase, faltantes, progresso = detectar_ciclo(df, config)
 
-# ========================= TABS (simplificado para teste rápido) =========================
+# ========================= TESTE RÁPIDO =========================
 st.subheader("🔥 Status do Ciclo")
 col1, col2, col3 = st.columns(3)
 col1.metric("Fase", f"**{fase}**")
 col2.metric("Faltantes", f"**{len(faltantes)}**")
 col3.metric("Progresso", f"{progresso:.1f}%")
 
-st.success("✅ Sistema carregou corretamente! Teste agora as outras abas.")
+st.success("✅ Sistema carregou corretamente! Agora teste gerando jogos.")
 
-st.caption("v11.0 MULTI-LOTERIA • Código corrigido e robusto • Teste com Lotofácil novamente")
+st.caption("v11.0 MULTI-LOTERIA • Versão ultra robusta e corrigida")
