@@ -1,8 +1,6 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-import plotly.express as px
-import plotly.graph_objects as go
 from collections import defaultdict, Counter
 import random
 from typing import List, Tuple, Dict
@@ -11,14 +9,14 @@ warnings.filterwarnings("ignore")
 
 # ========================= CONFIGURAÇÃO =========================
 st.set_page_config(
-    page_title="IA LOTOFÁCIL ELITE v5.1",
+    page_title="IA LOTOFÁCIL ELITE v5.2",
     page_icon="🎟️",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
-st.title("🎟️ IA LOTOFÁCIL ELITE v5.1 – Statistical Pro + Genetic Algorithm")
-st.markdown("**Versão ULTRA PROFISSIONAL SEM PYTORCH** | GA + Markov + Ciclo + Backtest Real")
+st.title("🎟️ IA LOTOFÁCIL ELITE v5.2 – ULTRA LEVE")
+st.markdown("**Versão Minimalista para Streamlit Cloud** | GA + Markov + Ciclo + Backtest")
 
 # ========================= SIDEBAR =========================
 with st.sidebar:
@@ -32,14 +30,14 @@ with st.sidebar:
     st.markdown("---")
     pop_size = st.number_input("Tamanho população GA", 100, 500, 200)
     generations = st.number_input("Gerações GA", 20, 100, 50)
-    st.info("Quanto maior, mais preciso (mas mais lento)")
+    st.info("Quanto maior, mais preciso")
 
 # ========================= UPLOAD + VALIDAÇÃO =========================
 st.subheader("📤 Upload do Histórico Oficial")
 arquivo = st.file_uploader(
     "Envie o CSV da Lotofácil (mínimo 15 colunas)",
     type=["csv"],
-    help="Primeiras 15 colunas devem ser as dezenas (1 a 25)"
+    help="Primeiras 15 colunas = dezenas (1 a 25)"
 )
 
 if arquivo is None:
@@ -96,8 +94,8 @@ fase, faltantes = detectar_ciclo_elite(df)
 # ========================= TABS =========================
 tab1, tab2, tab3, tab4, tab5 = st.tabs([
     "📊 Análise do Ciclo",
-    "📈 Statistical Predictor Pro",
-    "🎯 Gerar Jogos Elite (GA)",
+    "📈 Statistical Predictor",
+    "🎯 Gerar Jogos Elite",
     "📈 Backtest Histórico",
     "💰 Bankroll Dashboard"
 ])
@@ -110,9 +108,7 @@ with tab1:
     col3.metric("**Concursos Analisados**", f"{len(df)}")
     
     cobertura = [len(set(np.concatenate(df.iloc[:i+1].values))) for i in range(len(df))]
-    fig_ciclo = px.line(y=cobertura, title="Evolução da Cobertura de Dezenas")
-    fig_ciclo.update_layout(height=400)
-    st.plotly_chart(fig_ciclo, use_container_width=True)
+    st.line_chart(pd.Series(cobertura, name="Cobertura de Dezenas"))
 
 # ========================= TAB 2: STATISTICAL PREDICTOR =========================
 def calcular_probabilidades(df: pd.DataFrame) -> np.ndarray:
@@ -125,14 +121,13 @@ def calcular_probabilidades(df: pd.DataFrame) -> np.ndarray:
 
 with tab2:
     st.subheader("📈 Statistical Predictor Pro")
-    st.info("Modelo baseado em frequência histórica + Markov (substitui o LSTM)")
     if st.button("🔄 Atualizar Probabilidades", type="primary"):
         probs = calcular_probabilidades(df)
         st.session_state["probs_estatisticas"] = probs
-        st.success("✅ Probabilidades atualizadas com sucesso!")
+        st.success("✅ Probabilidades atualizadas!")
 
     if "probs_estatisticas" in st.session_state:
-        st.success("✅ Predictor Pro carregado e pronto!")
+        st.success("✅ Predictor Pro pronto!")
 
 # ========================= TAB 3: GERAR JOGOS =========================
 def markov_transicao(df: pd.DataFrame) -> Dict[int, Dict[int, float]]:
@@ -157,8 +152,7 @@ def frequencia_historica(df: pd.DataFrame) -> Dict[int, float]:
     return {n: contagem.get(n, 0) / max_count for n in range(1, 26)}
 
 def calcular_fitness(jogo: List[int], probs: np.ndarray, markov: Dict, freq: Dict, ultimos: List[int], faltantes: List[int]) -> float:
-    score = 0.0
-    score += sum(probs[n-1] for n in jogo) * 0.35
+    score = sum(probs[n-1] for n in jogo) * 0.35
     for n in jogo:
         for m in jogo:
             if n != m and m in markov.get(n, {}):
@@ -195,8 +189,8 @@ def genetic_algorithm(probs: np.ndarray, markov: Dict, freq: Dict, ultimos: List
     return sorted(best)
 
 with tab3:
-    st.subheader("🎯 Gerador HÍBRIDO PROFISSIONAL (GA + Statistical Pro)")
-    qtd_jogos = st.slider("Quantidade de jogos para gerar", 5, 100, 20)
+    st.subheader("🎯 Gerador HÍBRIDO PROFISSIONAL")
+    qtd_jogos = st.slider("Quantidade de jogos", 5, 100, 20)
     
     if st.button("🚀 GERAR JOGOS ELITE AGORA", type="primary", use_container_width=True):
         if "probs_estatisticas" not in st.session_state:
@@ -206,13 +200,9 @@ with tab3:
                 probs = st.session_state["probs_estatisticas"]
                 trans = markov_transicao(df)
                 freq = frequencia_historica(df)
-                
                 ultimos = df.iloc[-1].tolist()
                 
-                jogos = []
-                for i in range(qtd_jogos):
-                    jogo = genetic_algorithm(probs, trans, freq, ultimos, faltantes)
-                    jogos.append(jogo)
+                jogos = [genetic_algorithm(probs, trans, freq, ultimos, faltantes) for _ in range(qtd_jogos)]
                 
                 df_jogos = pd.DataFrame(jogos, columns=[f"D{i+1}" for i in range(15)])
                 df_jogos["Score Elite"] = [calcular_fitness(j, probs, trans, freq, ultimos, faltantes) for j in jogos]
@@ -224,7 +214,7 @@ with tab3:
                 st.download_button(
                     label="📥 Baixar todos os jogos em Excel",
                     data=excel,
-                    file_name="jogos_lotofacil_elite_v5.1.xlsx",
+                    file_name="jogos_lotofacil_elite_v5.2.xlsx",
                     mime="application/vnd.ms-excel"
                 )
 
@@ -234,71 +224,57 @@ with tab4:
     if st.button("Executar Backtest Completo", type="secondary"):
         with st.spinner("Rodando backtest..."):
             acertos = []
-            hits_11 = hits_12 = hits_13 = hits_14 = 0
-            
             for i in range(100, len(df) - 1):
                 df_train = df.iloc[:i]
                 real = set(df.iloc[i])
-                
                 freq_train = frequencia_historica(df_train)
                 pred = sorted(freq_train, key=freq_train.get, reverse=True)[:15]
-                pred_set = set(pred)
-                
-                acerto = len(real & pred_set)
+                acerto = len(real & set(pred))
                 acertos.append(acerto)
-                
-                if acerto >= 11: hits_11 += 1
-                if acerto >= 12: hits_12 += 1
-                if acerto >= 13: hits_13 += 1
-                if acerto >= 14: hits_14 += 1
             
             media_acerto = np.mean(acertos)
+            contagem = pd.Series(acertos).value_counts().sort_index()
             
             col1, col2, col3, col4 = st.columns(4)
             col1.metric("Média de acertos", f"{media_acerto:.2f}/15")
-            col2.metric("11+ pontos", f"{hits_11} vezes")
-            col3.metric("12+ pontos", f"{hits_12} vezes")
-            col4.metric("13+ pontos", f"{hits_13} vezes")
+            col2.metric("11+ pontos", f"{sum(1 for x in acertos if x >= 11)}")
+            col3.metric("12+ pontos", f"{sum(1 for x in acertos if x >= 12)}")
+            col4.metric("13+ pontos", f"{sum(1 for x in acertos if x >= 13)}")
             
-            fig_back = px.histogram(acertos, nbins=15, title="Distribuição de Acertos no Backtest")
-            st.plotly_chart(fig_back, use_container_width=True)
-            
+            st.bar_chart(contagem)
             st.success(f"✅ Backtest concluído! Média: **{media_acerto:.1f}** dezenas por jogo")
 
 # ========================= TAB 5: BANKROLL =========================
 with tab5:
-    st.subheader("💰 Bankroll Dashboard – Simulação Realista")
-    
+    st.subheader("💰 Bankroll Dashboard")
     bank_inicial = st.number_input("Bankroll inicial (R$)", value=5000, step=100)
     valor_aposta = st.number_input("Valor por jogo (R$)", value=2.50, step=0.10)
-    qtd_simul = st.slider("Quantidade de jogos por concurso", 5, 50, 15)
+    qtd_simul = st.slider("Jogos por concurso", 5, 50, 15)
     
-    if st.button("🔥 RODAR SIMULAÇÃO MONTE CARLO (10.000 rodadas)", type="primary"):
-        with st.spinner("Calculando projeções realistas..."):
+    if st.button("🔥 RODAR SIMULAÇÃO (10.000 rodadas)", type="primary"):
+        with st.spinner("Calculando..."):
             np.random.seed(42)
             simulacoes = 10000
             concursos = 100
-            
             saldos = np.full(simulacoes, bank_inicial, dtype=float)
             
             for _ in range(concursos):
                 custo = qtd_simul * valor_aposta
-                ganhos = np.random.choice(
-                    [0, 50, 500, 15000, 2000000],
-                    size=simulacoes,
-                    p=[0.68, 0.22, 0.075, 0.024, 0.001]
-                )
+                ganhos = np.random.choice([0, 50, 500, 15000, 2000000], size=simulacoes, p=[0.68, 0.22, 0.075, 0.024, 0.001])
                 saldo_novo = saldos - custo + (ganhos * (qtd_simul / 20))
                 saldos = np.maximum(saldo_novo, 0)
             
-            fig_bank = go.Figure()
-            fig_bank.add_trace(go.Scatter(y=np.percentile(saldos, [10, 50, 90]), mode='lines', name='Percentis'))
-            fig_bank.update_layout(title="Evolução do Bankroll (10.000 simulações)", height=500)
-            st.plotly_chart(fig_bank, use_container_width=True)
+            # Gráfico simples com percentis
+            df_bank = pd.DataFrame({
+                "P10": np.percentile(saldos, 10),
+                "Mediana": np.percentile(saldos, 50),
+                "P90": np.percentile(saldos, 90)
+            }, index=["Final"])
+            st.line_chart(df_bank)
             
             roi_medio = ((np.median(saldos) - bank_inicial) / bank_inicial) * 100
             st.metric("ROI Médio em 100 concursos", f"{roi_medio:.1f}%", f"R$ {np.median(saldos):,.0f}")
             st.balloons()
             st.success(f"**Projeção final (mediana):** R$ {np.median(saldos):,.0f}")
 
-st.caption("IA LOTOFÁCIL ELITE v5.1 • Ultra Profissional • Sem PyTorch")
+st.caption("IA LOTOFÁCIL ELITE v5.2 • Versão Minimalista para Streamlit Cloud")
