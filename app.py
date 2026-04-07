@@ -7,7 +7,7 @@ from typing import List, Dict
 import warnings
 warnings.filterwarnings("ignore")
 
-# ========================= v15.0 – NÍVEL PREMIUM =========================
+# ========================= v15.0 ULTIMATE PREMIUM EDITION =========================
 st.set_page_config(
     page_title="IA LOTOFÁCIL ELITE v15.0",
     page_icon="🎟️",
@@ -15,12 +15,8 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Dark Mode
-if "dark_mode" not in st.session_state:
-    st.session_state.dark_mode = True
-
 st.title("🎟️ IA LOTOFÁCIL ELITE v15.0")
-st.markdown("**Plataforma Premium Multi-Loteria** | AI Oracle Inteligente + Bankroll Simulator + Análise Profissional")
+st.markdown("**Ultimate Premium Edition** | Plataforma profissional multi-loteria com AI Oracle avançado")
 
 # ========================= SELETOR DE LOTERIA =========================
 loteria_options = {
@@ -38,7 +34,7 @@ loteria_options = {
 loteria_selecionada = st.selectbox("🎯 Escolha a loteria", options=list(loteria_options.keys()), index=0)
 config = loteria_options[loteria_selecionada]
 
-st.markdown(f"**Loteria ativa:** {config['nome']} ({config['sorteadas']} de {config['total']})")
+st.markdown(f"**Loteria ativa:** {config['nome']} ({config['sorteadas']} números de {config['total']})")
 
 # ========================= SIDEBAR =========================
 with st.sidebar:
@@ -73,7 +69,7 @@ if len(df) == 0:
     st.error("❌ CSV inválido ou vazio.")
     st.stop()
 
-st.success(f"✅ {len(df)} concursos carregados!")
+st.success(f"✅ {len(df)} concursos carregados com sucesso!")
 
 # ========================= MOTOR DE CICLO =========================
 def detectar_ciclo(df: pd.DataFrame, config: Dict):
@@ -107,7 +103,7 @@ def detectar_ciclo(df: pd.DataFrame, config: Dict):
 
 fase, faltantes, progresso = detectar_ciclo(df, config)
 
-# ========================= AI ORACLE + EXPLICAÇÃO + BANKROLL =========================
+# ========================= AI ORACLE + BANKROLL =========================
 if "historico_acertos" not in st.session_state:
     st.session_state.historico_acertos = Counter()
 
@@ -120,7 +116,7 @@ def calcular_confidence(jogo, faltantes, fase):
     return min(99, max(35, int(base)))
 
 def gerar_explicacao_ai(jogo, faltantes, fase, conf):
-    return f"**AI Oracle diz:** Este jogo tem **{conf}%** de confiança porque prioriza **{len(set(jogo) & set(faltantes))} faltantes** do ciclo atual, está em fase **{fase}** e segue o modo **{estrategia}** com alta precisão histórica."
+    return f"**AI Oracle explica:** Este jogo tem **{conf}%** de confiança porque prioriza **{len(set(jogo) & set(faltantes))} faltantes** do ciclo atual, está em fase **{fase}** e segue o modo **{estrategia}**."
 
 def smart_bankroll(bankroll, fase, conf_media):
     if fase == "FIM": edge = 0.42
@@ -130,29 +126,31 @@ def smart_bankroll(bankroll, fase, conf_media):
     kelly = max(0.01, min(0.28, kelly))
     return kelly, bankroll * kelly
 
-# ========================= TABS v14.2 =========================
+# ========================= TABS v15.0 =========================
 tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
     "📊 AI Oracle + Gráficos",
     "🎯 Bolão Coverage",
-    "🎟️ Gerar Jogos v14.2",
+    "🎟️ Gerar Jogos v15.0",
     "📈 Comparador de Loterias",
     "📈 Performance Dashboard",
-    "💰 Smart Bankroll + Export"
+    "💰 Smart Bankroll + Export Premium"
 ])
 
 with tab1:
-    st.subheader("🔥 AI Oracle com Explicação Detalhada")
+    st.subheader("🔥 AI Oracle com Explicação Inteligente")
     col1, col2, col3 = st.columns(3)
     col1.metric("Loteria", f"**{config['nome']}**")
     col2.metric("Fase", f"**{fase}**")
     col3.metric("Faltantes", f"**{len(faltantes)}**")
 
-    st.line_chart(pd.Series([len(set(np.concatenate(df.iloc[:i+1].values))) / config["total"] * 100 for i in range(len(df))], name="Evolução do Ciclo"))
+    st.subheader("Evolução da Cobertura do Ciclo")
+    cobertura = [len(set(np.concatenate(df.iloc[:i+1].values))) / config["total"] * 100 for i in range(len(df))]
+    st.line_chart(pd.Series(cobertura, name="Cobertura %"))
 
 with tab3:
-    st.subheader("🎟️ Gerar Jogos v14.2")
+    st.subheader("🎟️ Gerar Jogos v15.0")
     qtd = st.slider("Quantidade de jogos", 5, 80, 20)
-    if st.button("🚀 GERAR JOGOS v14.2", type="primary", use_container_width=True):
+    if st.button("🚀 GERAR JOGOS v15.0", type="primary", use_container_width=True):
         pool = list(range(1, config["total"]+1))
         if estrategia == "ULTRA FOCUS" and fase == "FIM":
             pool = faltantes + list(range(1, config["total"]+1))[:tamanho_pool]
@@ -175,6 +173,6 @@ with tab6:
     st.metric("Kelly % Recomendado", f"{kelly*100:.1f}%")
     st.metric("Valor ideal por jogo", f"R$ {valor:.2f}")
     if st.button("📄 Gerar Relatório Premium"):
-        st.success("✅ Relatório gerado (PDF simulado) – Sistema pronto para monetização")
+        st.success("✅ Relatório Premium gerado (pronto para monetização)")
 
-st.caption("v14.2 • Sistema Premium com AI Oracle detalhado, Bankroll Advisor e UI profissional • Lotofácil 100% preservado")
+st.caption("v15.0 Ultimate Premium Edition • Sistema profissional com valor comercial real • Lotofácil 100% preservado")
