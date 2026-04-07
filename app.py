@@ -1,8 +1,6 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-import torch
-import torch.nn as nn
 import plotly.express as px
 import plotly.graph_objects as go
 from collections import defaultdict, Counter
@@ -13,24 +11,23 @@ warnings.filterwarnings("ignore")
 
 # ========================= CONFIGURAÇÃO =========================
 st.set_page_config(
-    page_title="IA LOTOFÁCIL ELITE v5.0",
+    page_title="IA LOTOFÁCIL ELITE v5.1",
     page_icon="🎟️",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
-st.title("🎟️ IA LOTOFÁCIL ELITE v5.0 – LSTM + Genetic Algorithm + Backtest Real")
-st.markdown("**Versão ULTRA PROFISSIONAL** | LSTM + GA + Ciclo + Bankroll Realista + Backtesting")
+st.title("🎟️ IA LOTOFÁCIL ELITE v5.1 – Statistical Pro + Genetic Algorithm")
+st.markdown("**Versão ULTRA PROFISSIONAL SEM PYTORCH** | GA + Markov + Ciclo + Backtest Real")
 
 # ========================= SIDEBAR =========================
 with st.sidebar:
     st.header("⚙️ Configurações Avançadas")
     st.markdown("---")
-    peso_lstm = st.slider("Peso LSTM", 0.0, 1.0, 0.40)
-    peso_markov = st.slider("Peso Markov", 0.0, 1.0, 0.30)
-    peso_ciclo = st.slider("Peso Ciclo", 0.0, 1.0, 0.15)
-    peso_frequencia = st.slider("Peso Frequência", 0.0, 1.0, 0.10)
-    peso_diversidade = st.slider("Peso Diversidade", 0.0, 1.0, 0.05)
+    peso_markov = st.slider("Peso Markov", 0.0, 1.0, 0.35)
+    peso_frequencia = st.slider("Peso Frequência", 0.0, 1.0, 0.30)
+    peso_ciclo = st.slider("Peso Ciclo", 0.0, 1.0, 0.20)
+    peso_diversidade = st.slider("Peso Diversidade", 0.0, 1.0, 0.15)
     
     st.markdown("---")
     pop_size = st.number_input("Tamanho população GA", 100, 500, 200)
@@ -54,7 +51,7 @@ def carregar_e_validar_csv(arquivo) -> pd.DataFrame:
     df = pd.read_csv(arquivo)
     
     if len(df.columns) < 15:
-        st.error("❌ O CSV precisa ter pelo menos 15 colunas (as 15 dezenas)")
+        st.error("❌ O CSV precisa ter pelo menos 15 colunas")
         st.stop()
     
     df_dezenas = df.iloc[:, :15].copy()
@@ -71,9 +68,9 @@ def carregar_e_validar_csv(arquivo) -> pd.DataFrame:
     
     duplicatas = df_dezenas.apply(lambda row: len(set(row)) != 15, axis=1).sum()
     if duplicatas > 0:
-        st.warning(f"⚠️ {duplicatas} concursos com dezenas repetidas foram encontrados e corrigidos")
+        st.warning(f"⚠️ {duplicatas} concursos com dezenas repetidas foram corrigidos")
     
-    st.success(f"✅ {len(df)} concursos carregados e validados com sucesso!")
+    st.success(f"✅ {len(df)} concursos carregados e validados!")
     return df_dezenas
 
 df = carregar_e_validar_csv(arquivo)
@@ -99,8 +96,8 @@ fase, faltantes = detectar_ciclo_elite(df)
 # ========================= TABS =========================
 tab1, tab2, tab3, tab4, tab5 = st.tabs([
     "📊 Análise do Ciclo",
-    "🧠 LSTM Neural Predictor",
-    "🎯 Gerar Jogos Elite (GA + LSTM)",
+    "📈 Statistical Predictor Pro",
+    "🎯 Gerar Jogos Elite (GA)",
     "📈 Backtest Histórico",
     "💰 Bankroll Dashboard"
 ])
@@ -117,69 +114,25 @@ with tab1:
     fig_ciclo.update_layout(height=400)
     st.plotly_chart(fig_ciclo, use_container_width=True)
 
-# ========================= TAB 2: LSTM =========================
-class LotofacilLSTM(nn.Module):
-    def __init__(self, hidden_size=256, num_layers=3, dropout=0.25):
-        super().__init__()
-        self.lstm = nn.LSTM(25, hidden_size, num_layers, batch_first=True, dropout=dropout)
-        self.dropout = nn.Dropout(dropout)
-        self.fc1 = nn.Linear(hidden_size, 128)
-        self.fc2 = nn.Linear(128, 25)
-        self.sigmoid = nn.Sigmoid()
-    
-    def forward(self, x):
-        out, _ = self.lstm(x)
-        out = self.dropout(out[:, -1, :])
-        out = torch.relu(self.fc1(out))
-        return self.sigmoid(self.fc2(out))
-
-@st.cache_resource
-def treinar_lstm_pro(df: pd.DataFrame) -> LotofacilLSTM:
-    model = LotofacilLSTM()
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.0015)
-    criterion = nn.BCELoss()
-    
-    X, y = [], []
-    seq_len = 6
-    for i in range(len(df) - seq_len):
-        seq = np.zeros((seq_len, 25))
-        for j in range(seq_len):
-            for num in df.iloc[i + j]:
-                seq[j, num - 1] = 1
-        X.append(seq)
-        
-        next_vec = np.zeros(25)
-        for num in df.iloc[i + seq_len]:
-            next_vec[num - 1] = 1
-        y.append(next_vec)
-    
-    X = torch.tensor(X, dtype=torch.float32)
-    y = torch.tensor(y, dtype=torch.float32)
-    
-    with st.spinner("🔥 Treinando LSTM Pro..."):
-        for epoch in range(50):
-            optimizer.zero_grad()
-            pred = model(X)
-            loss = criterion(pred, y)
-            loss.backward()
-            optimizer.step()
-            if epoch % 10 == 0:
-                st.write(f"Epoch {epoch}/50 - Loss: {loss.item():.4f}")
-    
-    st.success("✅ LSTM Pro treinada com sucesso!")
-    return model
+# ========================= TAB 2: STATISTICAL PREDICTOR =========================
+def calcular_probabilidades(df: pd.DataFrame) -> np.ndarray:
+    todos = np.concatenate(df.values)
+    contagem = Counter(todos)
+    probs = np.zeros(25)
+    for n in range(1, 26):
+        probs[n-1] = contagem.get(n, 0) / len(todos)
+    return probs
 
 with tab2:
-    col1, col2 = st.columns([3, 1])
-    with col1:
-        if st.button("🚀 Treinar LSTM Pro agora (50 epochs)", type="primary", use_container_width=True):
-            model_lstm = treinar_lstm_pro(df)
-            st.session_state["model_lstm"] = model_lstm
-    with col2:
-        st.info("Modelo com 3 camadas LSTM + Dropout 25%")
-    
-    if "model_lstm" in st.session_state:
-        st.success("✅ Modelo LSTM carregado e pronto!")
+    st.subheader("📈 Statistical Predictor Pro")
+    st.info("Modelo baseado em frequência histórica + Markov (substitui o LSTM)")
+    if st.button("🔄 Atualizar Probabilidades", type="primary"):
+        probs = calcular_probabilidades(df)
+        st.session_state["probs_estatisticas"] = probs
+        st.success("✅ Probabilidades atualizadas com sucesso!")
+
+    if "probs_estatisticas" in st.session_state:
+        st.success("✅ Predictor Pro carregado e pronto!")
 
 # ========================= TAB 3: GERAR JOGOS =========================
 def markov_transicao(df: pd.DataFrame) -> Dict[int, Dict[int, float]]:
@@ -200,12 +153,12 @@ def markov_transicao(df: pd.DataFrame) -> Dict[int, Dict[int, float]]:
 def frequencia_historica(df: pd.DataFrame) -> Dict[int, float]:
     todos = np.concatenate(df.values)
     contagem = Counter(todos)
-    max_count = max(contagem.values())
+    max_count = max(contagem.values()) or 1
     return {n: contagem.get(n, 0) / max_count for n in range(1, 26)}
 
-def calcular_fitness(jogo: List[int], lstm_probs: np.ndarray, markov: Dict, freq: Dict, ultimos: List[int], faltantes: List[int]) -> float:
+def calcular_fitness(jogo: List[int], probs: np.ndarray, markov: Dict, freq: Dict, ultimos: List[int], faltantes: List[int]) -> float:
     score = 0.0
-    score += sum(lstm_probs[n-1] for n in jogo) * peso_lstm
+    score += sum(probs[n-1] for n in jogo) * 0.35
     for n in jogo:
         for m in jogo:
             if n != m and m in markov.get(n, {}):
@@ -217,11 +170,11 @@ def calcular_fitness(jogo: List[int], lstm_probs: np.ndarray, markov: Dict, freq
     score -= intersecao * 0.8 * peso_diversidade
     return score
 
-def genetic_algorithm(lstm_probs: np.ndarray, markov: Dict, freq: Dict, ultimos: List[int], faltantes: List[int]) -> List[int]:
+def genetic_algorithm(probs: np.ndarray, markov: Dict, freq: Dict, ultimos: List[int], faltantes: List[int]) -> List[int]:
     pop = [random.sample(range(1, 26), 15) for _ in range(pop_size)]
     
     for gen in range(generations):
-        fitness = [calcular_fitness(ind, lstm_probs, markov, freq, ultimos, faltantes) for ind in pop]
+        fitness = [calcular_fitness(ind, probs, markov, freq, ultimos, faltantes) for ind in pop]
         sorted_pop = [x for _, x in sorted(zip(fitness, pop), reverse=True)]
         new_pop = sorted_pop[:pop_size//4]
         
@@ -238,38 +191,31 @@ def genetic_algorithm(lstm_probs: np.ndarray, markov: Dict, freq: Dict, ultimos:
             new_pop.append(sorted(filho))
         pop = new_pop
     
-    best = max(pop, key=lambda x: calcular_fitness(x, lstm_probs, markov, freq, ultimos, faltantes))
+    best = max(pop, key=lambda x: calcular_fitness(x, probs, markov, freq, ultimos, faltantes))
     return sorted(best)
 
 with tab3:
-    st.subheader("🎯 Gerador HÍBRIDO PROFISSIONAL (GA + LSTM + Markov + Ciclo)")
+    st.subheader("🎯 Gerador HÍBRIDO PROFISSIONAL (GA + Statistical Pro)")
     qtd_jogos = st.slider("Quantidade de jogos para gerar", 5, 100, 20)
     
     if st.button("🚀 GERAR JOGOS ELITE AGORA", type="primary", use_container_width=True):
-        if "model_lstm" not in st.session_state:
-            st.error("❌ Treine a LSTM primeiro na aba anterior!")
+        if "probs_estatisticas" not in st.session_state:
+            st.error("❌ Atualize as probabilidades primeiro na aba Statistical Predictor!")
         else:
-            with st.spinner("Executando Genetic Algorithm + LSTM..."):
-                model = st.session_state["model_lstm"]
+            with st.spinner("Executando Genetic Algorithm..."):
+                probs = st.session_state["probs_estatisticas"]
                 trans = markov_transicao(df)
                 freq = frequencia_historica(df)
-                
-                historico_bin = np.zeros((6, 25))
-                for j in range(6):
-                    for num in df.iloc[-6 + j]:
-                        historico_bin[j, num - 1] = 1
-                input_lstm = torch.tensor([historico_bin], dtype=torch.float32)
-                probs_lstm = model(input_lstm).detach().numpy()[0]
                 
                 ultimos = df.iloc[-1].tolist()
                 
                 jogos = []
                 for i in range(qtd_jogos):
-                    jogo = genetic_algorithm(probs_lstm, trans, freq, ultimos, faltantes)
+                    jogo = genetic_algorithm(probs, trans, freq, ultimos, faltantes)
                     jogos.append(jogo)
                 
                 df_jogos = pd.DataFrame(jogos, columns=[f"D{i+1}" for i in range(15)])
-                df_jogos["Score Elite"] = [calcular_fitness(j, probs_lstm, trans, freq, ultimos, faltantes) for j in jogos]
+                df_jogos["Score Elite"] = [calcular_fitness(j, probs, trans, freq, ultimos, faltantes) for j in jogos]
                 df_jogos = df_jogos.sort_values("Score Elite", ascending=False).reset_index(drop=True)
                 
                 st.dataframe(df_jogos.style.highlight_max(axis=0, color="#00ff88"), use_container_width=True)
@@ -278,13 +224,13 @@ with tab3:
                 st.download_button(
                     label="📥 Baixar todos os jogos em Excel",
                     data=excel,
-                    file_name="jogos_lotofacil_elite_v5.xlsx",
+                    file_name="jogos_lotofacil_elite_v5.1.xlsx",
                     mime="application/vnd.ms-excel"
                 )
 
 # ========================= TAB 4: BACKTEST =========================
 with tab4:
-    st.subheader("📈 Backtest Histórico (Rolling Window)")
+    st.subheader("📈 Backtest Histórico")
     if st.button("Executar Backtest Completo", type="secondary"):
         with st.spinner("Rodando backtest..."):
             acertos = []
@@ -317,7 +263,7 @@ with tab4:
             fig_back = px.histogram(acertos, nbins=15, title="Distribuição de Acertos no Backtest")
             st.plotly_chart(fig_back, use_container_width=True)
             
-            st.success(f"✅ Backtest concluído! Taxa média: **{media_acerto:.1f} dezenas** por jogo")
+            st.success(f"✅ Backtest concluído! Média: **{media_acerto:.1f}** dezenas por jogo")
 
 # ========================= TAB 5: BANKROLL =========================
 with tab5:
@@ -355,4 +301,4 @@ with tab5:
             st.balloons()
             st.success(f"**Projeção final (mediana):** R$ {np.median(saldos):,.0f}")
 
-st.caption("IA LOTOFÁCIL ELITE v5.0 • Ultra Profissional • 2026")
+st.caption("IA LOTOFÁCIL ELITE v5.1 • Ultra Profissional • Sem PyTorch")
