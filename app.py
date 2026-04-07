@@ -9,12 +9,15 @@ import hashlib
 import warnings
 warnings.filterwarnings("ignore")
 
-# ========================= v16.0 ULTIMATE COMMERCIAL SAAS =========================
-st.set_page_config(page_title="IA LOTOFÁCIL ELITE v16.0", page_icon="🎟️", layout="wide")
+# ========================= v17.0 ULTIMATE COMMERCIAL =========================
+st.set_page_config(page_title="IA LOTOFÁCIL ELITE v17.0", page_icon="🎟️", layout="wide")
 
-# Inicialização do banco de dados
+st.title("🎟️ IA LOTOFÁCIL ELITE v17.0")
+st.markdown("**Plataforma Comercial Profissional** • Login + Assinatura + Pagamentos")
+
+# ====================== BANCO DE DADOS ======================
 def init_db():
-    conn = sqlite3.connect("users.db", check_same_thread=False)
+    conn = sqlite3.connect("elite.db", check_same_thread=False)
     c = conn.cursor()
     c.execute('''CREATE TABLE IF NOT EXISTS users (
                     id INTEGER PRIMARY KEY,
@@ -22,19 +25,12 @@ def init_db():
                     password TEXT,
                     subscription TEXT DEFAULT "Free",
                     created_at TEXT)''')
-    c.execute('''CREATE TABLE IF NOT EXISTS game_history (
-                    id INTEGER PRIMARY KEY,
-                    username TEXT,
-                    loteria TEXT,
-                    jogo TEXT,
-                    confidence INTEGER,
-                    data TEXT)''')
     conn.commit()
     return conn
 
 conn = init_db()
 
-# ========================= LOGIN / CADASTRO =========================
+# ====================== LOGIN / CADASTRO ======================
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
     st.session_state.username = None
@@ -45,13 +41,13 @@ def hash_password(password):
 
 def login(username, password):
     c = conn.cursor()
-    c.execute("SELECT * FROM users WHERE username = ? AND password = ?", 
+    c.execute("SELECT subscription FROM users WHERE username = ? AND password = ?", 
               (username, hash_password(password)))
-    user = c.fetchone()
-    if user:
+    result = c.fetchone()
+    if result:
         st.session_state.logged_in = True
         st.session_state.username = username
-        st.session_state.subscription = user[3]
+        st.session_state.subscription = result[0]
         return True
     return False
 
@@ -59,41 +55,39 @@ def register(username, password):
     try:
         c = conn.cursor()
         c.execute("INSERT INTO users (username, password, subscription, created_at) VALUES (?, ?, 'Free', ?)",
-                  (username, hash_password(password), datetime.now().strftime("%Y-%m-%d %H:%M")))
+                  (username, hash_password(password), datetime.now().strftime("%Y-%m-%d")))
         conn.commit()
         return True
     except:
         return False
 
-# Tela de Login / Cadastro
+# Tela de Login
 if not st.session_state.logged_in:
-    st.subheader("🔑 Acesso Premium")
-    tab_login, tab_register = st.tabs(["Login", "Criar Conta"])
+    st.subheader("🔑 Acesso à Plataforma Premium")
+    tab1, tab2 = st.tabs(["Entrar", "Criar Conta"])
 
-    with tab_login:
-        username = st.text_input("Usuário")
-        password = st.text_input("Senha", type="password")
+    with tab1:
+        user = st.text_input("Usuário")
+        pw = st.text_input("Senha", type="password")
         if st.button("Entrar", type="primary"):
-            if login(username, password):
-                st.success(f"Bem-vindo de volta, {username}!")
+            if login(user, pw):
+                st.success(f"Bem-vindo, {user}!")
                 st.rerun()
             else:
                 st.error("Usuário ou senha incorretos")
 
-    with tab_register:
+    with tab2:
         new_user = st.text_input("Novo usuário")
-        new_pass = st.text_input("Nova senha", type="password")
+        new_pw = st.text_input("Nova senha", type="password")
         if st.button("Criar conta", type="primary"):
-            if register(new_user, new_pass):
-                st.success("Conta criada com sucesso! Faça login.")
+            if register(new_user, new_pw):
+                st.success("Conta criada! Faça login.")
             else:
                 st.error("Usuário já existe")
-
     st.stop()
 
 # ========================= INTERFACE PREMIUM =========================
-st.title("🎟️ IA LOTOFÁCIL ELITE v16.0")
-st.markdown(f"**Usuário:** {st.session_state.username} | **Plano:** {st.session_state.subscription} **Pro**")
+st.sidebar.success(f"👤 {st.session_state.username} | Plano: **{st.session_state.subscription}**")
 
 # ========================= SELETOR DE LOTERIA =========================
 loteria_options = {
@@ -132,12 +126,89 @@ def carregar_csv(arquivo, sorteadas):
 df = carregar_csv(arquivo, config["sorteadas"])
 
 if len(df) == 0:
-    st.error("❌ CSV inválido.")
+    st.error("❌ CSV inválido ou vazio.")
     st.stop()
 
 st.success(f"✅ {len(df)} concursos carregados!")
 
-# (O resto do código mantém as funcionalidades anteriores: ciclo, AI Oracle, confiança, etc.)
+# ========================= MOTOR DE CICLO =========================
+def detectar_ciclo(df: pd.DataFrame, config: Dict):
+    if len(df) == 0:
+        return "INÍCIO", list(range(1, config["total"]+1)), 0.0
 
-# ========================= FIM DO CÓDIGO =========================
-st.caption("v16.0 Ultimate Commercial Edition • Sistema com login, banco de dados e assinatura • Pronto para monetização")
+    if config["tipo_ciclo"] == "full":
+        historico = df.values
+        ciclos_inicio = [0]
+        cobertura = set()
+        for i in range(len(historico)):
+            cobertura.update(historico[i])
+            if len(cobertura) == config["total"]:
+                ciclos_inicio.append(i + 1)
+                cobertura = set()
+        ultimo_reset = ciclos_inicio[-1]
+        df_atual = df.iloc[ultimo_reset:]
+        cobertura_atual = set(np.concatenate(df_atual.values))
+        faltantes = sorted(set(range(1, config["total"]+1)) - cobertura_atual)
+        progresso = len(cobertura_atual) / config["total"] * 100
+        fase = "INÍCIO" if progresso < 40 else "MEIO" if progresso < 80 else "FIM"
+        return fase, faltantes, progresso
+
+    else:
+        ultimos = df.iloc[-40:] if len(df) > 40 else df
+        todos = set(np.concatenate(ultimos.values))
+        faltantes = sorted(set(range(1, config["total"]+1)) - todos)
+        progresso = (config["total"] - len(faltantes)) / config["total"] * 100
+        fase = "INÍCIO" if progresso < 40 else "MEIO" if progresso < 80 else "FIM"
+        return fase, faltantes, progresso
+
+fase, faltantes, progresso = detectar_ciclo(df, config)
+
+# ========================= SISTEMA DE PAGAMENTOS =========================
+st.sidebar.subheader("💳 Assinatura")
+st.sidebar.write(f"Plano atual: **{st.session_state.subscription}**")
+
+if st.session_state.subscription == "Free":
+    st.sidebar.warning("🔓 Plano Free – Recursos limitados")
+    if st.sidebar.button("🔥 Upgrade para Pro (R$ 29/mês)"):
+        st.session_state.payment_page = True
+
+if st.session_state.subscription == "Pro":
+    st.sidebar.success("✅ Plano Pro ativo")
+
+# Página de Pagamento
+if st.session_state.get("payment_page", False):
+    st.subheader("💳 Checkout – Upgrade para Pro")
+    st.write("**Plano Pro** – R$ 29,90 / mês")
+    st.write("• Acesso ilimitado a todas as loterias")
+    st.write("• AI Oracle completo")
+    st.write("• Relatórios premium")
+    
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("Pagar com Mercado Pago", type="primary", use_container_width=True):
+            # Simulação de pagamento
+            c = conn.cursor()
+            c.execute("UPDATE users SET subscription = 'Pro' WHERE username = ?", (st.session_state.username,))
+            conn.commit()
+            st.session_state.subscription = "Pro"
+            st.session_state.payment_page = False
+            st.success("✅ Pagamento aprovado! Agora você é Pro.")
+            st.rerun()
+    with col2:
+        if st.button("Cancelar"):
+            st.session_state.payment_page = False
+            st.rerun()
+
+# ========================= TABS =========================
+tab1, tab2, tab3 = st.tabs(["🎟️ Gerar Jogos", "📊 AI Oracle", "💰 Meu Plano"])
+
+with tab1:
+    st.subheader("🎟️ Gerar Jogos")
+    qtd = st.slider("Quantidade de jogos", 5, 80, 20)
+    if st.button("🚀 Gerar Jogos", type="primary"):
+        pool = list(range(1, config["total"]+1))
+        jogos = [sorted(random.sample(pool, config["sorteadas"])) for _ in range(qtd)]
+        df_jogos = pd.DataFrame(jogos, columns=[f"D{i+1}" for i in range(config["sorteadas"])])
+        st.dataframe(df_jogos, use_container_width=True)
+
+st.caption("v17.0 Ultimate Commercial • Sistema com login + banco de dados + pagamentos simulados • Pronto para produção")
