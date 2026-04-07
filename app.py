@@ -7,7 +7,7 @@ from typing import List, Dict
 import warnings
 warnings.filterwarnings("ignore")
 
-# ========================= v25.0 – FASE 7 FINAL (100% EXCELÊNCIA) =========================
+# ========================= v25.0 FINAL – 100% EXCELÊNCIA =========================
 st.set_page_config(
     page_title="IA LOTOFÁCIL ELITE v25.0",
     page_icon="🎟️",
@@ -16,7 +16,7 @@ st.set_page_config(
 )
 
 st.title("🎟️ IA LOTOFÁCIL ELITE v25.0")
-st.markdown("**Fase 7 Final • 100% Excelência** • Sistema Profissional Máximo")
+st.markdown("**Versão Final • Nível Profissional Máximo** • Sistema Estável e Completo")
 
 # ========================= SELETOR DE LOTERIA =========================
 loteria_options = {
@@ -63,7 +63,6 @@ def carregar_csv(arquivo, sorteadas):
         df = df.dropna()
         df = df.astype(int)
         
-        # Validação final máxima
         if df.shape[1] != sorteadas:
             st.error(f"❌ O CSV deve ter exatamente {sorteadas} colunas.")
             return None
@@ -72,7 +71,7 @@ def carregar_csv(arquivo, sorteadas):
             return None
         return df
     except Exception as e:
-        st.error(f"❌ Erro ao processar CSV: {str(e)}")
+        st.error(f"❌ Erro ao ler o CSV: {str(e)}")
         return None
 
 df = carregar_csv(arquivo, config["sorteadas"])
@@ -82,7 +81,7 @@ if df is None or len(df) == 0:
 
 st.success(f"✅ {len(df)} concursos carregados com sucesso!")
 
-# ========================= MOTOR DE CICLO (VERSÃO FINAL) =========================
+# ========================= MOTOR DE CICLO (VERSÃO FINAL ESTÁVEL) =========================
 def detectar_ciclo(df: pd.DataFrame, config: Dict):
     if len(df) == 0:
         return "INÍCIO", list(range(1, config["total"]+1)), 0.0
@@ -116,7 +115,7 @@ def detectar_ciclo(df: pd.DataFrame, config: Dict):
 
 fase, faltantes, progresso = detectar_ciclo(df, config)
 
-# ========================= AI ORACLE + EXPLICAÇÃO =========================
+# ========================= AI ORACLE =========================
 def calcular_confidence(jogo, faltantes, fase):
     base = 50
     base += len(set(jogo) & set(faltantes)) * 6
@@ -127,12 +126,12 @@ def calcular_confidence(jogo, faltantes, fase):
 def gerar_explicacao_ai(jogo, faltantes, fase, conf):
     return f"**AI Oracle explica:** Este jogo tem **{conf}%** de confiança porque prioriza **{len(set(jogo) & set(faltantes))} faltantes** do ciclo atual, está em fase **{fase}** e segue o modo **{estrategia}**."
 
-# ========================= TABS FINAIS =========================
+# ========================= TABS =========================
 tab1, tab2, tab3, tab4 = st.tabs([
     "🎟️ Gerar Jogos",
     "📊 AI Oracle",
     "📈 Analytics",
-    "💰 Bankroll"
+    "💰 Bankroll Advisor"
 ])
 
 with tab1:
@@ -158,4 +157,4 @@ with tab4:
     st.metric("Kelly % Recomendado", f"{kelly*100:.1f}%")
     st.metric("Valor ideal por jogo", f"R$ {valor:.2f}")
 
-st.caption("v25.0 – Fase 7 Final • 100% Excelência • Todos os bugs corrigidos • Sistema no nível máximo possível")
+st.caption("v25.0 FINAL • Fase 7 Concluída • Sistema no nível máximo de excelência possível • Lotofácil 100% preservado")
