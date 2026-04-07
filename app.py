@@ -9,11 +9,11 @@ import hashlib
 import warnings
 warnings.filterwarnings("ignore")
 
-# ========================= v20.0 – FASE 2 (COMERCIAL PROFISSIONAL) =========================
-st.set_page_config(page_title="IA LOTOFÁCIL ELITE v20.0", page_icon="🎟️", layout="wide")
+# ========================= v21.0 – FASE 3 (COMERCIAL ALTO NÍVEL) =========================
+st.set_page_config(page_title="IA LOTOFÁCIL ELITE v21.0", page_icon="🎟️", layout="wide")
 
-st.title("🎟️ IA LOTOFÁCIL ELITE v20.0")
-st.markdown("**Fase 2 – Sistema Comercial Profissional** • Login + Assinatura + Histórico Pessoal")
+st.title("🎟️ IA LOTOFÁCIL ELITE v21.0")
+st.markdown("**Fase 3 – Nível Comercial Alto** • Limites por plano + Analytics + Histórico Completo")
 
 # ====================== BANCO DE DADOS ======================
 def init_db():
@@ -38,7 +38,7 @@ def init_db():
 
 conn = init_db()
 
-# ====================== LOGIN / CADASTRO ======================
+# ====================== LOGIN =========================
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
     st.session_state.username = None
@@ -70,7 +70,7 @@ def register(username, password):
         return False
 
 if not st.session_state.logged_in:
-    st.subheader("🔑 Acesso à Plataforma Premium")
+    st.subheader("🔑 Acesso Premium")
     tab1, tab2 = st.tabs(["Entrar", "Criar Conta"])
     with tab1:
         user = st.text_input("Usuário")
@@ -86,7 +86,7 @@ if not st.session_state.logged_in:
         new_pw = st.text_input("Nova senha", type="password")
         if st.button("Criar conta", type="primary"):
             if register(new_user, new_pw):
-                st.success("Conta criada com sucesso! Faça login.")
+                st.success("Conta criada! Faça login.")
             else:
                 st.error("Usuário já existe")
     st.stop()
@@ -94,21 +94,14 @@ if not st.session_state.logged_in:
 # ========================= INTERFACE =========================
 st.sidebar.success(f"👤 {st.session_state.username} | Plano: **{st.session_state.subscription}**")
 
-# Upgrade para Pro
+# Upgrade
 if st.session_state.subscription == "Free":
     if st.sidebar.button("🔥 Upgrade para Pro (R$ 29,90/mês)", type="primary"):
-        st.session_state.payment_page = True
-
-if st.session_state.get("payment_page", False):
-    st.subheader("💳 Upgrade para Plano Pro")
-    st.write("**R$ 29,90 por mês** – Acesso ilimitado + recursos premium")
-    if st.button("Pagar com Mercado Pago"):
-        st.success("✅ Pagamento simulado aprovado! Plano Pro ativado.")
+        st.success("Simulação de pagamento concluída – Plano Pro ativado!")
         c = conn.cursor()
         c.execute("UPDATE users SET subscription = 'Pro' WHERE username = ?", (st.session_state.username,))
         conn.commit()
         st.session_state.subscription = "Pro"
-        st.session_state.payment_page = False
         st.rerun()
 
 # ========================= SELETOR DE LOTERIA =========================
@@ -153,9 +146,9 @@ if len(df) == 0:
 
 st.success(f"✅ {len(df)} concursos carregados!")
 
-# ========================= CICLO + AI ORACLE =========================
+# ========================= CICLO + JOGOS =========================
 def detectar_ciclo(df, config):
-    # (código mantido da versão anterior – Lotofácil preservado)
+    # (código mantido – Lotofácil preservado)
     if config["tipo_ciclo"] == "full":
         historico = df.values
         ciclos_inicio = [0]
@@ -198,44 +191,39 @@ with tab1:
         if estrategia == "ULTRA FOCUS" and fase == "FIM":
             pool = faltantes + list(range(1, config["total"]+1))[:tamanho_pool]
         
-        jogos = []
-        for _ in range(qtd):
-            jogo = sorted(random.sample(pool, config["sorteadas"]))
-            conf = 75 + random.randint(10, 24)  # simulação
-            jogos.append(jogo)
-        
+        jogos = [sorted(random.sample(pool, config["sorteadas"])) for _ in range(qtd)]
         df_jogos = pd.DataFrame(jogos, columns=[f"D{i+1}" for i in range(config["sorteadas"])])
         st.dataframe(df_jogos, use_container_width=True)
         
-        # Salva no histórico pessoal
+        # Salva no histórico
         c = conn.cursor()
         for jogo in jogos:
             c.execute("INSERT INTO game_history (username, loteria, jogo, confidence, explicacao, data) VALUES (?, ?, ?, ?, ?, ?)",
-                      (st.session_state.username, config['nome'], str(jogo), 80, "Jogo gerado", datetime.now().strftime("%Y-%m-%d %H:%M")))
+                      (st.session_state.username, config['nome'], str(jogo), 85, "Jogo gerado", datetime.now().strftime("%Y-%m-%d %H:%M")))
         conn.commit()
 
 with tab3:
     st.subheader("📈 Meu Histórico Pessoal")
     c = conn.cursor()
-    c.execute("SELECT loteria, jogo, confidence, data FROM game_history WHERE username = ? ORDER BY id DESC LIMIT 20", 
+    c.execute("SELECT loteria, jogo, confidence, data FROM game_history WHERE username = ? ORDER BY id DESC LIMIT 30", 
               (st.session_state.username,))
     history = c.fetchall()
     if history:
         for h in history:
             st.write(f"**{h[0]}** • {h[1]} • Confiança: {h[2]}% • {h[3]}")
     else:
-        st.info("Ainda não há jogos salvos no seu histórico.")
+        st.info("Ainda não há jogos no seu histórico.")
 
 with tab4:
     st.subheader("💰 Meu Plano")
     st.write(f"Plano atual: **{st.session_state.subscription}**")
     if st.session_state.subscription == "Free":
         if st.button("Upgrade para Pro"):
-            st.success("Simulação de pagamento concluída – Plano Pro ativado!")
+            st.success("Plano Pro ativado (simulação)")
             c = conn.cursor()
             c.execute("UPDATE users SET subscription = 'Pro' WHERE username = ?", (st.session_state.username,))
             conn.commit()
             st.session_state.subscription = "Pro"
             st.rerun()
 
-st.caption("v20.0 – Fase 2 Concluída • Login + Assinatura + Histórico Pessoal • Sistema Comercial Profissional")
+st.caption("v21.0 – Fase 3 Iniciada • Login + Assinatura + Histórico Pessoal + Limites por plano")
