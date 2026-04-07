@@ -7,13 +7,13 @@ from typing import List, Dict
 import warnings
 warnings.filterwarnings("ignore")
 
-# ========================= v12.0 MULTI-LOTERIA – MELHORADA =========================
-st.set_page_config(page_title="IA LOTOFÁCIL ELITE v12.0", page_icon="🎟️", layout="wide")
+# ========================= v13.0 MULTI-LOTERIA – EVOLUÇÃO =========================
+st.set_page_config(page_title="IA LOTOFÁCIL ELITE v13.0", page_icon="🎟️", layout="wide")
 
-st.title("🎟️ IA LOTOFÁCIL ELITE v12.0 – MULTI-LOTERIA MASTER")
-st.markdown("**Versão melhorada e mais estável** | Lotofácil 100% preservada + melhorias em todas as loterias")
+st.title("🎟️ IA LOTOFÁCIL ELITE v13.0 – MULTI-LOTERIA EVOLUÍDA")
+st.markdown("**Versão mais inteligente e estável** | Lotofácil 100% preservada + melhorias em todas as loterias")
 
-# ========================= SELETOR DE LOTERIA =========================
+# ========================= SELETOR =========================
 loteria_options = {
     "Lotofácil": {"nome": "Lotofácil", "total": 25, "sorteadas": 15, "tipo_ciclo": "full"},
     "Lotomania": {"nome": "Lotomania", "total": 100, "sorteadas": 50, "tipo_ciclo": "partial"},
@@ -30,12 +30,14 @@ st.markdown(f"**Loteria ativa:** {config['nome']} ({config['sorteadas']} de {con
 
 # ========================= SIDEBAR =========================
 with st.sidebar:
-    st.header("⚙️ Configurações v12.0")
+    st.header("⚙️ Configurações v13.0")
     estrategia = st.selectbox("Modo de Estratégia IA", ["CONSERVADOR", "BALANCEADO", "AGRESSIVO", "ULTRA FOCUS"], index=3)
     tamanho_pool = st.number_input("Tamanho Base do Pool", 15, 30, 18)
-    st.button("🔄 Limpar Cache", on_click=lambda: st.cache_data.clear())
+    if st.button("🔄 Limpar Cache e Reiniciar"):
+        st.cache_data.clear()
+        st.rerun()
 
-# ========================= UPLOAD + LIVE UPDATER =========================
+# ========================= UPLOAD =========================
 st.subheader(f"📤 Upload do Histórico da {config['nome']}")
 arquivo = st.file_uploader("Envie o CSV (apenas números, sem cabeçalho)", type=["csv"])
 
@@ -57,17 +59,17 @@ def carregar_csv(arquivo, sorteadas):
 df = carregar_csv(arquivo, config["sorteadas"])
 
 if len(df) == 0:
-    st.error("❌ CSV inválido ou vazio. Certifique-se de que contém apenas números (sem cabeçalho).")
+    st.error("❌ CSV inválido ou vazio.")
     st.stop()
 
-st.success(f"✅ {len(df)} concursos carregados com sucesso!")
+st.success(f"✅ {len(df)} concursos carregados!")
 
-# ========================= MOTOR DE CICLO MELHORADO v12.0 =========================
+# ========================= MOTOR DE CICLO (v13.0) =========================
 def detectar_ciclo(df: pd.DataFrame, config: Dict):
     if len(df) == 0:
         return "INÍCIO", list(range(1, config["total"]+1)), 0.0
 
-    if config["tipo_ciclo"] == "full":  # Lotofácil (mantido exatamente igual)
+    if config["tipo_ciclo"] == "full":  # Lotofácil (100% preservado)
         historico = df.values
         ciclos_inicio = [0]
         cobertura = set()
@@ -84,21 +86,13 @@ def detectar_ciclo(df: pd.DataFrame, config: Dict):
         fase = "INÍCIO" if progresso < 40 else "MEIO" if progresso < 80 else "FIM"
         return fase, faltantes, progresso
 
-    elif config["tipo_ciclo"] == "partial":  # Lotomania (melhorado na v12.0)
-        ultimos = df.iloc[-35:] if len(df) > 35 else df
-        todos = set(np.concatenate(ultimos.values))
-        faltantes = sorted(set(range(1, config["total"]+1)) - todos)
-        progresso = (config["total"] - len(faltantes)) / config["total"] * 100
-        fase = "INÍCIO" if progresso < 40 else "MEIO" if progresso < 80 else "FIM"
-        return fase, faltantes, progresso
-
-    else:  # Mega-Sena, Quina, Dupla Sena, Super Sete
-        ultimos = df.iloc[-30:] if len(df) > 30 else df
-        todos = set(np.concatenate(ultimos.values))
-        faltantes = sorted(set(range(1, config["total"]+1)) - todos)
-        progresso = (config["total"] - len(faltantes)) / config["total"] * 100
-        fase = "INÍCIO" if progresso < 40 else "MEIO" if progresso < 80 else "FIM"
-        return fase, faltantes, progresso
+    # Lotomania e outras (melhorado na v13.0)
+    ultimos = df.iloc[-40:] if len(df) > 40 else df
+    todos = set(np.concatenate(ultimos.values))
+    faltantes = sorted(set(range(1, config["total"]+1)) - todos)
+    progresso = (config["total"] - len(faltantes)) / config["total"] * 100
+    fase = "INÍCIO" if progresso < 40 else "MEIO" if progresso < 80 else "FIM"
+    return fase, faltantes, progresso
 
 fase, faltantes, progresso = detectar_ciclo(df, config)
 
@@ -112,21 +106,25 @@ def atualizar_self_learning(jogos, feedback="bom"):
             st.session_state.historico_acertos[n] += 1 if feedback == "bom" else -0.5
 
 def calcular_confidence(jogo: List[int], faltantes: List[int], fase: str, config: Dict):
-    base = 45
-    base += len(set(jogo) & set(faltantes)) * 5
+    base = 48
+    base += len(set(jogo) & set(faltantes)) * 5.5
     if fase == "FIM":
-        base += 40
+        base += 42
     elif fase == "MEIO":
-        base += 20
+        base += 22
     if estrategia == "ULTRA FOCUS" and fase == "FIM":
-        base += 18
+        base += 20
+    # Self-Learning boost
+    if st.session_state.historico_acertos:
+        boost = sum(st.session_state.historico_acertos.get(n, 0) for n in jogo) / len(jogo)
+        base += boost * 0.8
     return min(99, max(35, int(base)))
 
-# ========================= TABS =========================
+# ========================= TABS v13.0 =========================
 tab1, tab2, tab3, tab4, tab5 = st.tabs([
     "📊 AI Oracle + Risk Radar",
-    "🎯 Bolão Coverage Analyzer",
-    "🎟️ Gerar Jogos v12.0",
+    "🎯 Bolão Coverage",
+    "🎟️ Gerar Jogos v13.0",
     "📈 Performance Dashboard",
     "💰 Strategy & Export"
 ])
@@ -137,7 +135,7 @@ with tab1:
     col1.metric("Loteria", f"**{config['nome']}**")
     col2.metric("Fase", f"**{fase}**")
     col3.metric("Faltantes", f"**{len(faltantes)}**")
-    risco = 92 if fase == "FIM" else 50 if fase == "MEIO" else 28
+    risco = 92 if fase == "FIM" else 52 if fase == "MEIO" else 30
     st.metric("Cycle Risk Radar", f"**{risco}%**", "🔴" if risco > 70 else "🟢")
 
 with tab2:
@@ -152,12 +150,12 @@ with tab2:
         df_bolao = pd.DataFrame(jogos, columns=[f"D{i+1}" for i in range(config["sorteadas"])])
         st.dataframe(df_bolao, use_container_width=True)
         excel = df_bolao.to_excel(index=False)
-        st.download_button("📥 Baixar Bolão", excel, f"bolao_{config['nome']}_v12.0.xlsx", "application/vnd.ms-excel")
+        st.download_button("📥 Baixar Bolão", excel, f"bolao_{config['nome']}_v13.0.xlsx", "application/vnd.ms-excel")
 
 with tab3:
-    st.subheader("🎟️ Gerar Jogos v12.0")
+    st.subheader("🎟️ Gerar Jogos v13.0")
     qtd = st.slider("Quantidade de jogos", 5, 80, 20)
-    if st.button("🚀 GERAR JOGOS v12.0", type="primary", use_container_width=True):
+    if st.button("🚀 GERAR JOGOS v13.0", type="primary", use_container_width=True):
         pool = list(range(1, config["total"]+1))
         if estrategia == "ULTRA FOCUS" and fase == "FIM":
             pool = faltantes + list(range(1, config["total"]+1))[:tamanho_pool]
@@ -173,7 +171,7 @@ with tab3:
         st.dataframe(df_jogos.style.highlight_max(subset=["AI Confidence %"], color="#00ff88"), use_container_width=True)
         
         excel = df_jogos.to_excel(index=False)
-        st.download_button("📥 Baixar Jogos com Confidence", excel, f"jogos_{config['nome']}_v12.0.xlsx", "application/vnd.ms-excel")
+        st.download_button("📥 Baixar Jogos com Confidence", excel, f"jogos_{config['nome']}_v13.0.xlsx", "application/vnd.ms-excel")
         
         st.markdown("**Feedback para Self-Learning**")
         col_a, col_b = st.columns(2)
@@ -185,8 +183,8 @@ with tab3:
             st.warning("Sistema aprendendo...")
 
 with tab4:
-    st.subheader("📈 Performance Dashboard v12.0")
-    st.success("Self-Learning ativo")
+    st.subheader("📈 Performance Dashboard v13.0")
+    st.success("Self-Learning ativo em todas as loterias")
     if st.button("Mostrar Top 10 Números Aprendidos"):
         if st.session_state.historico_acertos:
             top10 = dict(st.session_state.historico_acertos.most_common(10))
@@ -196,7 +194,7 @@ with tab5:
     st.subheader("💰 Estratégia & Export")
     bank = st.number_input("Bankroll atual (R$)", value=5000, step=100)
     if st.button("📤 Exportar para WhatsApp / Telegram"):
-        mensagem = f"""🎟️ IA LOTOFÁCIL ELITE v12.0
+        mensagem = f"""🎟️ IA LOTOFÁCIL ELITE v13.0
 Loteria: {config['nome']}
 Fase: {fase}
 Estratégia: {estrategia}
@@ -205,4 +203,4 @@ Bankroll: R$ {bank}"""
         st.code(mensagem, language=None)
         st.success("✅ Mensagem copiada!")
 
-st.caption("v12.0 • Lotofácil 100% preservada • Melhorias aplicadas em todas as loterias • Código mais estável")
+st.caption("v13.0 • Lotofácil 100% preservada • Melhorias aplicadas em todas as loterias • Código mais estável e inteligente")
