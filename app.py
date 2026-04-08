@@ -12,9 +12,9 @@ st.set_page_config(page_title="LotoElite Pro", page_icon="🎟️", layout="wide
 st.title("🎟️ LotoElite Pro")
 st.markdown("**A mais avançada plataforma de previsão inteligente do Brasil** • Ciclo + IA + Aprendizado Pessoal")
 
-# ========================= MOTOR DE APRENDIZADO PESSOAL =========================
+# ========================= MOTOR DE APRENDIZADO PESSOAL AVANÇADO =========================
 if 'feedback' not in st.session_state:
-    st.session_state.feedback = []  # Cada entrada: {'fase': , 'estrategia': , 'pontos': , 'loteria': , 'numeros': }
+    st.session_state.feedback = []  # Cada entrada: {'fase': , 'estrategia': , 'pontos': , 'loteria': , 'jogo': }
 
 # ========================= SELETOR DE LOTERIA =========================
 loteria_options = {
@@ -117,7 +117,7 @@ tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
     "👤 Meu Perfil & Aprendizado"
 ])
 
-# TAB 1 - FECHAMENTO INTELIGENTE (com aprendizado)
+# TAB 1 - FECHAMENTO INTELIGENTE (com aprendizado avançado)
 with tab1:
     st.subheader("🔥 Fechamento Inteligente Recomendado pela IA")
     if st.button("🚀 Gerar Fechamento Inteligente", type="primary", use_container_width=True):
@@ -136,7 +136,7 @@ with tab1:
         st.dataframe(pd.DataFrame(jogos, columns=[f"D{i+1}" for i in range(config["sorteadas"])]), use_container_width=True)
         st.success("✅ 3 fechamentos inteligentes gerados!")
 
-# TAB 7 - MOTOR DE APRENDIZADO PESSOAL
+# TAB 7 - MOTOR DE APRENDIZADO PESSOAL AVANÇADO
 with tab7:
     st.subheader("👤 Meu Perfil & Aprendizado Pessoal")
     st.info("Informe quantos pontos você acertou. O sistema aprende com você e melhora os próximos jogos.")
