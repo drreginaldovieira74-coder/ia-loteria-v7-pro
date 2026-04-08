@@ -14,9 +14,8 @@ st.markdown("**A mais avançada plataforma de previsão inteligente do Brasil** 
 
 # ========================= MOTOR DE APRENDIZADO PESSOAL AVANÇADO =========================
 if 'feedback' not in st.session_state:
-    st.session_state.feedback = []  # Cada entrada: {'fase': , 'estrategia': , 'pontos': , 'loteria': , 'jogo': }
+    st.session_state.feedback = []
 
-# Dicionário de pesos aprendidos por número (por loteria)
 if 'pesos_aprendidos' not in st.session_state:
     st.session_state.pesos_aprendidos = defaultdict(lambda: defaultdict(float))
 
