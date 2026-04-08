@@ -10,11 +10,15 @@ warnings.filterwarnings("ignore")
 st.set_page_config(page_title="LotoElite Pro", page_icon="🎟️", layout="wide")
 
 st.title("🎟️ LotoElite Pro")
-st.markdown("**A mais avançada plataforma de previsão inteligente do Brasil** • Ciclo + IA + Aprendizado Pessoal")
+st.markdown("**A mais avançada plataforma de previsão inteligente do Brasil** • Ciclo + IA + Aprendizado Pessoal Avançado")
 
 # ========================= MOTOR DE APRENDIZADO PESSOAL AVANÇADO =========================
 if 'feedback' not in st.session_state:
     st.session_state.feedback = []  # Cada entrada: {'fase': , 'estrategia': , 'pontos': , 'loteria': , 'jogo': }
+
+# Dicionário de pesos aprendidos por número (por loteria)
+if 'pesos_aprendidos' not in st.session_state:
+    st.session_state.pesos_aprendidos = defaultdict(lambda: defaultdict(float))
 
 # ========================= SELETOR DE LOTERIA =========================
 loteria_options = {
@@ -117,7 +121,7 @@ tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
     "👤 Meu Perfil & Aprendizado"
 ])
 
-# TAB 1 - FECHAMENTO INTELIGENTE (com aprendizado avançado)
+# TAB 1 - FECHAMENTO INTELIGENTE (com aprendizado)
 with tab1:
     st.subheader("🔥 Fechamento Inteligente Recomendado pela IA")
     if st.button("🚀 Gerar Fechamento Inteligente", type="primary", use_container_width=True):
