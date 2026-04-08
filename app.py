@@ -1,9 +1,9 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-from collections import Counter
 import random
-from typing import List, Dict
+from collections import Counter
+from typing import Dict
 import warnings
 warnings.filterwarnings("ignore")
 
@@ -36,7 +36,7 @@ config = loteria_options[loteria_selecionada]
 
 st.markdown(f"**Loteria ativa:** {config['nome']} ({config['sorteadas']} de {config['total']})")
 
-# ========================= RESTO DO CÓDIGO (igual antes) =========================
+# ========================= SIDEBAR =========================
 with st.sidebar:
     st.header("⚙️ Configurações LotoElite Pro")
     estrategia = st.selectbox("Modo de Estratégia IA", ["CONSERVADOR", "BALANCEADO", "AGRESSIVO", "ULTRA FOCUS"], index=3)
@@ -45,6 +45,7 @@ with st.sidebar:
         st.cache_data.clear()
         st.rerun()
 
+# ========================= UPLOAD =========================
 st.subheader(f"📤 Upload do Histórico da {config['nome']}")
 arquivo = st.file_uploader("Envie o CSV (apenas números, sem cabeçalho)", type=["csv"])
 
@@ -75,8 +76,36 @@ if df is None or len(df) == 0:
 
 st.success(f"✅ {len(df)} concursos carregados com sucesso!")
 
-# (O resto do código continua igual - ciclo, AI Oracle, tabs, etc.)
-# ... [mantive o resto igual para não ficar muito longo aqui]
+# ========================= MOTOR DE CICLO =========================
+def detectar_ciclo(df: pd.DataFrame, config: Dict):
+    if len(df) == 0:
+        return "INÍCIO", list(range(1, config["total"]+1)), 0.0
+
+    if config["tipo_ciclo"] == "full":
+        historico = df.values
+        ciclos_inicio = [0]
+        cobertura = set()
+        for i in range(len(historico)):
+            cobertura.update(historico[i])
+            if len(cobertura) == config["total"]:
+                ciclos_inicio.append(i + 1)
+                cobertura = set()
+        ultimo_reset = ciclos_inicio[-1]
+        df_atual = df.iloc[ultimo_reset:]
+        if len(df_atual) == 0:
+            return "INÍCIO", list(range(1, config["total"]+1)), 0.0
+        cobertura_atual = set(np.concatenate(df_atual.values))
+        faltantes = sorted(set(range(1, config["total"]+1)) - cobertura_atual)
+        progresso = len(cobertura_atual) / config["total"] * 100
+        fase = "INÍCIO" if progresso < 40 else "MEIO" if progresso < 80 else "FIM"
+        return fase, faltantes, progresso
+    else:
+        ultimos = df.iloc[-45:] if len(df) > 45 else df
+        todos = set(np.concatenate(ultimos.values))
+        faltantes = sorted(set(range(1, config["total"]+1)) - todos)
+        progresso = (config["total"] - len(faltantes)) / config["total"] * 100
+        fase = "INÍCIO" if progresso < 40 else "MEIO" if progresso < 80 else "FIM"
+        return fase, faltantes, progresso
 
 fase, faltantes, progresso = detectar_ciclo(df, config)
 
@@ -91,7 +120,13 @@ def calcular_confidence(jogo, faltantes, fase):
 def gerar_explicacao_ai(jogo, faltantes, fase, conf):
     return f"**AI Oracle explica:** Este jogo tem **{conf}%** de confiança porque prioriza **{len(set(jogo) & set(faltantes))} faltantes** do ciclo atual, está em fase **{fase}** e segue o modo **{estrategia}**."
 
-tab1, tab2, tab3, tab4 = st.tabs(["🎟️ Gerar Jogos", "📊 AI Oracle", "📈 Analytics", "💰 Bankroll Advisor"])
+# ========================= TABS =========================
+tab1, tab2, tab3, tab4 = st.tabs([
+    "🎟️ Gerar Jogos",
+    "📊 AI Oracle",
+    "📈 Analytics",
+    "💰 Bankroll Advisor"
+])
 
 with tab1:
     st.subheader("🎟️ Gerar Jogos")
