@@ -10,7 +10,7 @@ warnings.filterwarnings("ignore")
 st.set_page_config(page_title="LotoElite Pro", page_icon="🎟️", layout="wide")
 
 st.title("🎟️ LotoElite Pro")
-st.markdown("**A mais avançada plataforma de previsão inteligente do Brasil** • Ciclo + IA + Aprendizado Pessoal Avançado")
+st.markdown("**A mais avançada plataforma de previsão inteligente do Brasil** • Ciclo + IA + Aprendizado Pessoal")
 
 # ========================= MOTOR DE APRENDIZADO PESSOAL AVANÇADO =========================
 if 'feedback' not in st.session_state:
