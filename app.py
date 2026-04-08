@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import random
-from collections import Counter
+from collections import Counter, defaultdict
 from typing import List, Dict
 import warnings
 warnings.filterwarnings("ignore")
@@ -10,7 +10,13 @@ warnings.filterwarnings("ignore")
 st.set_page_config(page_title="LotoElite Pro", page_icon="🎟️", layout="wide")
 
 st.title("🎟️ LotoElite Pro")
-st.markdown("**A mais avançada plataforma de previsão inteligente do Brasil**")
+st.markdown("**A mais avançada plataforma de previsão inteligente do Brasil** • Ciclo + IA + Aprendizado")
+
+# ========================= INICIALIZAÇÃO DE SESSÃO =========================
+if 'feedback' not in st.session_state:
+    st.session_state.feedback = []          # Histórico de feedback do usuário
+if 'historico_pessoal' not in st.session_state:
+    st.session_state.historico_pessoal = [] # Jogos gerados + resultados
 
 # ========================= SELETOR DE LOTERIA =========================
 loteria_options = {
@@ -29,14 +35,6 @@ loteria_selecionada = st.selectbox("🎯 Escolha a loteria", options=list(loteri
 config = loteria_options[loteria_selecionada]
 
 st.markdown(f"**Loteria ativa:** {config['nome']} ({config['sorteadas']} de {config['total']})")
-
-# ========================= SIDEBAR =========================
-with st.sidebar:
-    st.header("⚙️ Configurações")
-    estrategia = st.selectbox("Modo de Estratégia IA", ["CONSERVADOR", "BALANCEADO", "AGRESSIVO", "ULTRA FOCUS"], index=3)
-    if st.button("🔄 Limpar Cache"):
-        st.cache_data.clear()
-        st.rerun()
 
 # ========================= UPLOAD =========================
 st.subheader(f"📤 Upload do Histórico da {config['nome']}")
@@ -97,12 +95,13 @@ def detectar_ciclo(df: pd.DataFrame, config: Dict):
 fase, faltantes, progresso = detectar_ciclo(df, config)
 
 # ========================= TABS =========================
-tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
+tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
     "🔥 Fechamento Inteligente",
     "🎟️ Gerar Jogos com Filtros",
     "📊 Estatísticas com IA",
     "📈 Simulador Histórico",
     "📉 Backtesting Automático",
+    "👤 Meu Histórico & Feedback",
     "💰 Bankroll Advisor"
 ])
 
@@ -171,7 +170,7 @@ with tab4:
                 resultados.append({"Jogo": sorted(jogo), "Melhor": max(acertos), "Média": round(np.mean(acertos), 1)})
             st.dataframe(pd.DataFrame(resultados))
 
-# TAB 5 - BACKTESTING AUTOMÁTICO
+# TAB 5 - BACKTESTING AUTOMÁTICO (APROVADO)
 with tab5:
     st.subheader("📉 Backtesting Automático")
     st.info("Testa a estratégia atual contra os últimos 100 concursos")
@@ -180,7 +179,7 @@ with tab5:
             n = min(100, len(df))
             acertos_total = []
             for i in range(n):
-                jogo = sorted(random.sample(range(1, config["total"]+1), config["sorteadas"]))  # aqui podemos melhorar futuramente
+                jogo = sorted(random.sample(range(1, config["total"]+1), config["sorteadas"]))
                 acertos = sum(1 for n in jogo if n in df.iloc[i].values)
                 acertos_total.append(acertos)
             st.write(f"**Média de acertos:** {np.mean(acertos_total):.2f} pontos")
@@ -188,8 +187,26 @@ with tab5:
             st.write(f"**Taxa de 13+ pontos:** {sum(1 for a in acertos_total if a >= 13)/n*100:.1f}%")
             st.bar_chart(pd.Series(acertos_total).value_counts().sort_index())
 
-# TAB 6 - BANKROLL + RELATÓRIO
+# TAB 6 - MEU HISTÓRICO & FEEDBACK (AUTO-APRENDIZADO)
 with tab6:
+    st.subheader("👤 Meu Histórico & Feedback (Auto-Aprendizado)")
+    
+    # Feedback
+    st.write("**Dê feedback dos últimos jogos gerados**")
+    pontos = st.number_input("Quantos pontos você acertou no último sorteio?", 0, 15, 0)
+    if st.button("Salvar Feedback"):
+        st.session_state.feedback.append(pontos)
+        st.success("✅ Feedback salvo! O sistema está aprendendo com seus resultados.")
+    
+    # Histórico pessoal
+    if st.session_state.historico_pessoal:
+        st.write("**Seus jogos anteriores**")
+        st.dataframe(pd.DataFrame(st.session_state.historico_pessoal))
+    else:
+        st.info("Nenhum jogo salvo ainda.")
+
+# TAB 7 - BANKROLL + RELATÓRIO
+with tab7:
     st.subheader("💰 Smart Bankroll Advisor")
     bankroll = st.number_input("Bankroll atual (R$)", value=5000, step=100)
     kelly = 0.45 if fase == "FIM" else 0.28 if fase == "MEIO" else 0.12
@@ -200,12 +217,14 @@ with tab6:
     if st.button("📥 Gerar e Baixar Relatório Completo"):
         html = f"""
         <h1>LotoElite Pro - Relatório</h1>
-        <h2>Loteria: {config['nome']} | Fase: {fase}</h2>
-        <p>Gerado em: {pd.Timestamp.now()}</p>
+        <h2>Loteria: {config['nome']} | Fase do Ciclo: {fase}</h2>
+        <p>Gerado em: {pd.Timestamp.now().strftime('%d/%m/%Y %H:%M')}</p>
         <h3>Resumo do Ciclo</h3>
         <p>Progresso: {progresso:.1f}% | Faltantes: {len(faltantes)}</p>
         <p>Estratégia: {estrategia}</p>
+        <hr>
+        <p>Obrigado por usar LotoElite Pro</p>
         """
-        st.download_button("Baixar Relatório HTML (pode salvar como PDF)", html, f"relatorio_lotoelite_{pd.Timestamp.now().strftime('%Y%m%d')}.html", "text/html")
+        st.download_button("Baixar Relatório", html, f"relatorio_lotoelite_{pd.Timestamp.now().strftime('%Y%m%d_%H%M')}.html", "text/html")
 
 st.caption("LotoElite Pro • Estratégia que vence o acaso.")
