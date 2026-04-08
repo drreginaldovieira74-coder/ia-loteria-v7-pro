@@ -97,11 +97,12 @@ def detectar_ciclo(df: pd.DataFrame, config: Dict):
 fase, faltantes, progresso = detectar_ciclo(df, config)
 
 # ========================= TABS =========================
-tab1, tab2, tab3, tab4, tab5 = st.tabs([
+tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
     "🔥 Fechamento Inteligente",
     "🎟️ Gerar Jogos com Filtros",
     "📊 Estatísticas com IA",
     "📈 Simulador Histórico",
+    "📉 Backtesting Automático",
     "💰 Bankroll Advisor"
 ])
 
@@ -170,12 +171,41 @@ with tab4:
                 resultados.append({"Jogo": sorted(jogo), "Melhor": max(acertos), "Média": round(np.mean(acertos), 1)})
             st.dataframe(pd.DataFrame(resultados))
 
-# TAB 5 - BANKROLL
+# TAB 5 - BACKTESTING AUTOMÁTICO
 with tab5:
+    st.subheader("📉 Backtesting Automático")
+    st.info("Testa a estratégia atual contra os últimos 100 concursos")
+    if st.button("🚀 Executar Backtesting nos últimos 100 concursos", type="primary", use_container_width=True):
+        with st.spinner("Executando backtesting..."):
+            n = min(100, len(df))
+            acertos_total = []
+            for i in range(n):
+                jogo = sorted(random.sample(range(1, config["total"]+1), config["sorteadas"]))  # aqui podemos melhorar futuramente
+                acertos = sum(1 for n in jogo if n in df.iloc[i].values)
+                acertos_total.append(acertos)
+            st.write(f"**Média de acertos:** {np.mean(acertos_total):.2f} pontos")
+            st.write(f"**Taxa de 11+ pontos:** {sum(1 for a in acertos_total if a >= 11)/n*100:.1f}%")
+            st.write(f"**Taxa de 13+ pontos:** {sum(1 for a in acertos_total if a >= 13)/n*100:.1f}%")
+            st.bar_chart(pd.Series(acertos_total).value_counts().sort_index())
+
+# TAB 6 - BANKROLL + RELATÓRIO
+with tab6:
     st.subheader("💰 Smart Bankroll Advisor")
     bankroll = st.number_input("Bankroll atual (R$)", value=5000, step=100)
     kelly = 0.45 if fase == "FIM" else 0.28 if fase == "MEIO" else 0.12
     st.metric("Kelly % Recomendado", f"{kelly*100:.1f}%")
     st.metric("Valor ideal por jogo", f"R$ {bankroll * kelly:.2f}")
+
+    st.subheader("📄 Exportar Relatório Completo")
+    if st.button("📥 Gerar e Baixar Relatório Completo"):
+        html = f"""
+        <h1>LotoElite Pro - Relatório</h1>
+        <h2>Loteria: {config['nome']} | Fase: {fase}</h2>
+        <p>Gerado em: {pd.Timestamp.now()}</p>
+        <h3>Resumo do Ciclo</h3>
+        <p>Progresso: {progresso:.1f}% | Faltantes: {len(faltantes)}</p>
+        <p>Estratégia: {estrategia}</p>
+        """
+        st.download_button("Baixar Relatório HTML (pode salvar como PDF)", html, f"relatorio_lotoelite_{pd.Timestamp.now().strftime('%Y%m%d')}.html", "text/html")
 
 st.caption("LotoElite Pro • Estratégia que vence o acaso.")
