@@ -7,7 +7,7 @@ from typing import List, Dict
 import warnings
 warnings.filterwarnings("ignore")
 
-# ========================= INICIALIZAÇÃO DO SESSION_STATE =========================
+# ========================= INICIALIZAÇÃO DO SESSION_STATE (OBRIGATÓRIO NO TOPO) =========================
 if 'feedback' not in st.session_state:
     st.session_state.feedback = []
 
@@ -136,7 +136,7 @@ with tab1:
         st.dataframe(pd.DataFrame(jogos, columns=[f"D{i+1}" for i in range(config["sorteadas"])]), use_container_width=True)
         st.success("✅ 3 fechamentos inteligentes gerados!")
 
-# TAB 7 - MEU PERFIL & APRENDIZADO (corrigido)
+# TAB 7 - MEU PERFIL & APRENDIZADO
 with tab7:
     st.subheader("👤 Meu Perfil & Aprendizado Pessoal")
     st.info("Informe quantos pontos você acertou. O sistema aprende com você.")
