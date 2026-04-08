@@ -10,7 +10,6 @@ warnings.filterwarnings("ignore")
 # ========================= INICIALIZAÇÃO DO SESSION_STATE =========================
 if 'feedback' not in st.session_state:
     st.session_state.feedback = []
-
 if 'pesos_aprendidos' not in st.session_state:
     st.session_state.pesos_aprendidos = defaultdict(lambda: defaultdict(float))
 
@@ -120,7 +119,7 @@ tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
     "👤 Meu Perfil & Aprendizado"
 ])
 
-# TAB 1 - FECHAMENTO INTELIGENTE (com aprendizado)
+# TAB 1 - FECHAMENTO INTELIGENTE (com aprendizado avançado)
 with tab1:
     st.subheader("🔥 Fechamento Inteligente Recomendado pela IA")
     if st.button("🚀 Gerar Fechamento Inteligente", type="primary", use_container_width=True):
