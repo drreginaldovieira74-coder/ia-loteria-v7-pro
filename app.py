@@ -108,20 +108,21 @@ def detectar_ciclo(df: pd.DataFrame, config: Dict):
 
 fase, faltantes, progresso = detectar_ciclo(df, config)
 
-# ========================= FECHAMENTO INTELIGENTE =========================
+# ========================= FECHAMENTO INTELIGENTE (CORRIGIDO) =========================
 st.subheader("🔥 Fechamento Inteligente Recomendado pela IA")
 
 if st.button("🚀 Gerar Fechamento Inteligente", type="primary", use_container_width=True):
     jogos = []
-    for _ in range(3):  # gera 3 jogos fortes
-        if fase == "FIM" and len(faltantes) >= 8:
-            # Prioriza fortemente as faltantes (fechamento mais concentrado)
+    for _ in range(3):
+        if fase == "FIM" and len(faltantes) > 0:
+            # Prioriza fortemente as faltantes + completa com números únicos
             num_faltantes = min(12, len(faltantes))
-            jogo = sorted(random.sample(faltantes, num_faltantes) + 
-                         random.sample(list(set(range(1, config["total"]+1)) - set(faltantes)), 
-                                      config["sorteadas"] - num_faltantes))
+            faltantes_escolhidas = random.sample(faltantes, num_faltantes)
+            restantes = list(set(range(1, config["total"]+1)) - set(faltantes_escolhidas))
+            completar = random.sample(restantes, config["sorteadas"] - num_faltantes)
+            jogo = sorted(faltantes_escolhidas + completar)
         else:
-            # Modo balanceado com peso nas faltantes
+            # Modo normal com peso nas faltantes
             pool = faltantes * 3 + list(range(1, config["total"]+1))
             jogo = sorted(random.sample(pool, config["sorteadas"]))
         jogos.append(jogo)
@@ -130,7 +131,7 @@ if st.button("🚀 Gerar Fechamento Inteligente", type="primary", use_container_
     st.dataframe(df_jogos, use_container_width=True)
     st.success("✅ 3 fechamentos inteligentes gerados com base no ciclo atual!")
 
-# ========================= ABA NORMAL =========================
+# ========================= Gerar Jogos Normais =========================
 with st.expander("🎟️ Gerar Jogos Normais"):
     qtd = st.slider("Quantidade de jogos", 5, 100, 25)
     if st.button("Gerar Jogos Normais"):
