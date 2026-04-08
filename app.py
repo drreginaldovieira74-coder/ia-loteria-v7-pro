@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import random
-from collections import Counter
+from collections import Counter, defaultdict
 from typing import List, Dict
 import warnings
 warnings.filterwarnings("ignore")
@@ -12,9 +12,9 @@ st.set_page_config(page_title="LotoElite Pro", page_icon="🎟️", layout="wide
 st.title("🎟️ LotoElite Pro")
 st.markdown("**A mais avançada plataforma de previsão inteligente do Brasil** • Ciclo + IA + Aprendizado Pessoal")
 
-# ========================= SESSÃO DO USUÁRIO (APRENDIZADO) =========================
+# ========================= MOTOR DE APRENDIZADO PESSOAL =========================
 if 'feedback' not in st.session_state:
-    st.session_state.feedback = []
+    st.session_state.feedback = []  # Cada entrada: {'fase': , 'estrategia': , 'pontos': , 'loteria': , 'numeros': }
 
 # ========================= SELETOR DE LOTERIA =========================
 loteria_options = {
@@ -117,7 +117,7 @@ tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
     "👤 Meu Perfil & Aprendizado"
 ])
 
-# TAB 1 - FECHAMENTO INTELIGENTE
+# TAB 1 - FECHAMENTO INTELIGENTE (com aprendizado)
 with tab1:
     st.subheader("🔥 Fechamento Inteligente Recomendado pela IA")
     if st.button("🚀 Gerar Fechamento Inteligente", type="primary", use_container_width=True):
@@ -136,14 +136,14 @@ with tab1:
         st.dataframe(pd.DataFrame(jogos, columns=[f"D{i+1}" for i in range(config["sorteadas"])]), use_container_width=True)
         st.success("✅ 3 fechamentos inteligentes gerados!")
 
-# TAB 7 - PERFIL & APRENDIZADO PESSOAL
+# TAB 7 - MOTOR DE APRENDIZADO PESSOAL
 with tab7:
     st.subheader("👤 Meu Perfil & Aprendizado Pessoal")
-    st.info("Informe quantos pontos você acertou no último sorteio. O sistema aprende com você.")
+    st.info("Informe quantos pontos você acertou. O sistema aprende com você e melhora os próximos jogos.")
 
     col1, col2 = st.columns(2)
     with col1:
-        pontos = st.number_input("Quantos pontos você acertou?", 0, 15, 8)
+        pontos = st.number_input("Quantos pontos você acertou no último sorteio?", 0, 15, 8)
     with col2:
         if st.button("✅ Salvar Feedback"):
             st.session_state.feedback.append({
@@ -157,7 +157,7 @@ with tab7:
     if st.session_state.feedback:
         df_feedback = pd.DataFrame(st.session_state.feedback)
         media = df_feedback['pontos'].mean()
-        st.metric("Sua média de acertos até agora", f"{media:.2f} pontos")
+        st.metric("Sua média de acertos", f"{media:.2f} pontos")
         st.dataframe(df_feedback)
 
 st.caption("LotoElite Pro • Estratégia que vence o acaso.")
