@@ -7,6 +7,10 @@ from typing import List, Dict
 import warnings
 warnings.filterwarnings("ignore")
 
+# ========================= INICIALIZAÇÃO DO SESSION_STATE =========================
+if 'feedback' not in st.session_state:
+    st.session_state.feedback = []
+
 st.set_page_config(page_title="LotoElite Pro", page_icon="🎟️", layout="wide")
 
 st.title("🎟️ LotoElite Pro")
@@ -132,10 +136,11 @@ with tab1:
         st.dataframe(pd.DataFrame(jogos, columns=[f"D{i+1}" for i in range(config["sorteadas"])]), use_container_width=True)
         st.success("✅ 3 fechamentos inteligentes gerados!")
 
-# TAB 7 - PERFIL & APRENDIZADO
+# TAB 7 - MEU PERFIL & APRENDIZADO (corrigido)
 with tab7:
     st.subheader("👤 Meu Perfil & Aprendizado Pessoal")
     st.info("Informe quantos pontos você acertou. O sistema aprende com você.")
+
     col1, col2 = st.columns(2)
     with col1:
         pontos = st.number_input("Quantos pontos você acertou no último sorteio?", 0, 15, 8)
@@ -149,7 +154,7 @@ with tab7:
             })
             st.success("✅ Feedback salvo! O sistema está aprendendo com seus resultados.")
 
-    if 'feedback' in st.session_state and st.session_state.feedback:
+    if st.session_state.feedback:
         df_feedback = pd.DataFrame(st.session_state.feedback)
         media = df_feedback['pontos'].mean()
         st.metric("Sua média de acertos", f"{media:.2f} pontos")
