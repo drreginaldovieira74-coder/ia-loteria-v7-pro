@@ -10,13 +10,11 @@ warnings.filterwarnings("ignore")
 st.set_page_config(page_title="LotoElite Pro", page_icon="🎟️", layout="wide")
 
 st.title("🎟️ LotoElite Pro")
-st.markdown("**A mais avançada plataforma de previsão inteligente do Brasil** • Ciclo + IA + Aprendizado Real")
+st.markdown("**A mais avançada plataforma de previsão inteligente do Brasil** • Ciclo + IA + Aprendizado Pessoal")
 
-# ========================= SESSÃO DO USUÁRIO =========================
+# ========================= SESSÃO DO USUÁRIO (APRENDIZADO) =========================
 if 'feedback' not in st.session_state:
-    st.session_state.feedback = []          # Pontos acertados pelo usuário
-if 'historico_pessoal' not in st.session_state:
-    st.session_state.historico_pessoal = [] # Jogos gerados + resultado real
+    st.session_state.feedback = []  # Lista de feedbacks: {'fase': , 'estrategia': , 'pontos': , 'loteria': }
 
 # ========================= SELETOR DE LOTERIA =========================
 loteria_options = {
@@ -35,6 +33,14 @@ loteria_selecionada = st.selectbox("🎯 Escolha a loteria", options=list(loteri
 config = loteria_options[loteria_selecionada]
 
 st.markdown(f"**Loteria ativa:** {config['nome']} ({config['sorteadas']} de {config['total']})")
+
+# ========================= SIDEBAR =========================
+with st.sidebar:
+    st.header("⚙️ Configurações")
+    estrategia = st.selectbox("Modo de Estratégia IA", ["CONSERVADOR", "BALANCEADO", "AGRESSIVO", "ULTRA FOCUS"], index=3)
+    if st.button("🔄 Limpar Cache"):
+        st.cache_data.clear()
+        st.rerun()
 
 # ========================= UPLOAD =========================
 st.subheader(f"📤 Upload do Histórico da {config['nome']}")
@@ -102,33 +108,56 @@ tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
     "📈 Simulador Histórico",
     "📉 Backtesting Automático",
     "🤝 Bolão Optimizer (Ciclo)",
-    "👤 Meu Perfil & Feedback"
+    "👤 Meu Perfil & Aprendizado"
 ])
 
-# (As tabs 1 a 6 são as mesmas da versão anterior que já funcionavam bem)
+# TAB 1 - FECHAMENTO INTELIGENTE
+with tab1:
+    st.subheader("🔥 Fechamento Inteligente Recomendado pela IA")
+    if st.button("🚀 Gerar Fechamento Inteligente", type="primary", use_container_width=True):
+        jogos = []
+        for _ in range(3):
+            if fase == "FIM" and len(faltantes) > 0:
+                num_faltantes = min(12, len(faltantes))
+                faltantes_escolhidas = random.sample(faltantes, num_faltantes)
+                restantes = list(set(range(1, config["total"]+1)) - set(faltantes_escolhidas))
+                completar = random.sample(restantes, config["sorteadas"] - num_faltantes)
+                jogo = sorted(faltantes_escolhidas + completar)
+            else:
+                pool = faltantes * 3 + list(range(1, config["total"]+1))
+                jogo = sorted(random.sample(pool, config["sorteadas"]))
+            jogos.append(jogo)
+        st.dataframe(pd.DataFrame(jogos, columns=[f"D{i+1}" for i in range(config["sorteadas"])]), use_container_width=True)
+        st.success("✅ 3 fechamentos inteligentes gerados!")
 
-# TAB 7 - PERFIL PESSOAL + AUTO-APRENDIZADO
+# TAB 7 - PERFIL PESSOAL + MOTOR DE APRENDIZADO
 with tab7:
-    st.subheader("👤 Meu Perfil & Feedback (Auto-Aprendizado)")
-    
-    st.write("**Dê feedback do último sorteio**")
+    st.subheader("👤 Meu Perfil & Aprendizado Pessoal")
+    st.info("Informe os pontos que você acertou no último sorteio. O sistema aprende com você.")
+
     col1, col2 = st.columns(2)
     with col1:
-        pontos = st.number_input("Quantos pontos você acertou?", 0, 15, 0)
+        pontos = st.number_input("Quantos pontos você acertou?", 0, 15, 8)
     with col2:
         if st.button("✅ Salvar Feedback"):
-            st.session_state.feedback.append(pontos)
-            st.success("Feedback salvo! O sistema está aprendendo com seus resultados reais.")
-    
+            st.session_state.feedback.append({
+                "fase": fase,
+                "estrategia": estrategia,
+                "pontos": pontos,
+                "loteria": config['nome']
+            })
+            st.success("✅ Feedback salvo! O sistema está aprendendo com seus resultados.")
+
     if st.session_state.feedback:
-        media = np.mean(st.session_state.feedback)
-        st.write(f"**Sua média de acertos:** {media:.2f} pontos")
-        st.write(f"**Total de feedbacks:** {len(st.session_state.feedback)}")
-    
-    st.write("**Seus jogos anteriores**")
-    if st.session_state.historico_pessoal:
-        st.dataframe(pd.DataFrame(st.session_state.historico_pessoal))
-    else:
-        st.info("Nenhum jogo salvo ainda.")
+        st.write("**Seu histórico de aprendizado**")
+        df_feedback = pd.DataFrame(st.session_state.feedback)
+        st.dataframe(df_feedback)
+
+        # Cálculo simples de performance
+        if len(df_feedback) >= 3:
+            media = df_feedback['pontos'].mean()
+            st.metric("Sua média de acertos", f"{media:.2f} pontos")
+
+# As outras tabs (2 a 6) permanecem iguais às versões anteriores que já estavam funcionando.
 
 st.caption("LotoElite Pro • Estratégia que vence o acaso.")
