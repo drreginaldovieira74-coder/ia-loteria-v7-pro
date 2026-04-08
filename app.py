@@ -12,7 +12,7 @@ st.set_page_config(page_title="LotoElite Pro", page_icon="🎟️", layout="wide
 st.title("🎟️ LotoElite Pro")
 st.markdown("**A mais avançada plataforma de previsão inteligente do Brasil** • Ciclo + IA + Aprendizado Pessoal")
 
-# ========================= SESSÃO DO USUÁRIO =========================
+# ========================= SESSÃO DO USUÁRIO (APRENDIZADO) =========================
 if 'feedback' not in st.session_state:
     st.session_state.feedback = []
 
@@ -139,7 +139,7 @@ with tab1:
 # TAB 7 - PERFIL & APRENDIZADO PESSOAL
 with tab7:
     st.subheader("👤 Meu Perfil & Aprendizado Pessoal")
-    st.info("Informe quantos pontos você acertou no último sorteio. O sistema aprende com você e melhora os próximos jogos.")
+    st.info("Informe quantos pontos você acertou no último sorteio. O sistema aprende com você.")
 
     col1, col2 = st.columns(2)
     with col1:
