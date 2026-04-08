@@ -11,7 +11,7 @@ warnings.filterwarnings("ignore")
 if 'feedback' not in st.session_state:
     st.session_state.feedback = []
 if 'pesos_aprendidos' not in st.session_state:
-    st.session_state.pesos_aprendidos = defaultdict(lambda: defaultdict(float))
+    st.session_state.pesos_aprendidos = defaultdict(lambda: defaultdict(lambda: defaultdict(float)))
 
 st.set_page_config(page_title="LotoElite Pro", page_icon="🎟️", layout="wide")
 
@@ -110,14 +110,13 @@ fase, faltantes, progresso = detectar_ciclo(df, config)
 
 # ========================= MOTOR DE APRENDIZADO AVANÇADO =========================
 def aplicar_aprendizado(pool: List[int], loteria: str, fase: str) -> List[int]:
-    """Aplica pesos aprendidos do usuário no pool de números"""
     pesos = st.session_state.pesos_aprendidos[loteria][fase]
     if not pesos:
         return pool
     novo_pool = []
     for num in pool:
         peso = pesos.get(num, 1.0)
-        novo_pool.extend([num] * int(peso * 3))  # multiplica os números que o usuário mais acerta
+        novo_pool.extend([num] * max(1, int(peso * 3)))
     return novo_pool if novo_pool else pool
 
 # ========================= TABS =========================
@@ -145,7 +144,7 @@ with tab1:
                 jogo = sorted(faltantes_escolhidas + completar)
             else:
                 pool = faltantes * 3 + list(range(1, config["total"]+1))
-                pool = aplicar_aprendizado(pool, config['nome'], fase)  # ← APRENDIZADO AQUI
+                pool = aplicar_aprendizado(pool, config['nome'], fase)
                 jogo = sorted(random.sample(pool, config["sorteadas"]))
             jogos.append(jogo)
         st.dataframe(pd.DataFrame(jogos, columns=[f"D{i+1}" for i in range(config["sorteadas"])]), use_container_width=True)
@@ -164,7 +163,7 @@ with tab2:
         for _ in range(qtd):
             while True:
                 pool = list(range(1, config["total"]+1))
-                pool = aplicar_aprendizado(pool, config['nome'], fase)  # ← APRENDIZADO AQUI
+                pool = aplicar_aprendizado(pool, config['nome'], fase)
                 jogo = sorted(random.sample(pool, config["sorteadas"]))
                 num_pares = len([x for x in jogo if x % 2 == 0])
                 num_consec = max([jogo[i+1] - jogo[i] for i in range(len(jogo)-1)], default=0)
@@ -229,7 +228,7 @@ with tab6:
                 jogo = sorted(faltantes_escolhidas + completar)
             else:
                 pool = faltantes * 2 + list(range(1, config["total"]+1))
-                pool = aplicar_aprendizado(pool, config['nome'], fase)  # ← APRENDIZADO AQUI
+                pool = aplicar_aprendizado(pool, config['nome'], fase)
                 jogo = sorted(random.sample(pool, config["sorteadas"]))
             jogos_bolao.append(jogo)
         
@@ -254,11 +253,11 @@ with tab7:
                 "pontos": pontos,
                 "loteria": config['nome']
             })
-            # Atualiza pesos aprendidos
+            # Atualiza pesos aprendidos (agora com 3 níveis corretos)
             for num in range(1, config["total"]+1):
                 st.session_state.pesos_aprendidos[config['nome']][fase][num] += (pontos / 15.0)
             st.success("✅ Feedback salvo! O sistema está aprendendo com seus resultados e ajustando os próximos jogos.")
-    
+
     if st.session_state.feedback:
         df_feedback = pd.DataFrame(st.session_state.feedback)
         media = df_feedback['pontos'].mean()
