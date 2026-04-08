@@ -119,7 +119,7 @@ tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
     "👤 Meu Perfil & Aprendizado"
 ])
 
-# TAB 1 - FECHAMENTO INTELIGENTE (com aprendizado avançado)
+# TAB 1 - FECHAMENTO INTELIGENTE
 with tab1:
     st.subheader("🔥 Fechamento Inteligente Recomendado pela IA")
     if st.button("🚀 Gerar Fechamento Inteligente", type="primary", use_container_width=True):
@@ -138,7 +138,93 @@ with tab1:
         st.dataframe(pd.DataFrame(jogos, columns=[f"D{i+1}" for i in range(config["sorteadas"])]), use_container_width=True)
         st.success("✅ 3 fechamentos inteligentes gerados!")
 
-# TAB 7 - MOTOR DE APRENDIZADO PESSOAL AVANÇADO
+# TAB 2 - GERAR JOGOS COM FILTROS
+with tab2:
+    st.subheader("🎟️ Gerar Jogos com Filtros Avançados")
+    col1, col2, col3 = st.columns(3)
+    with col1: qtd = st.slider("Quantidade de jogos", 5, 100, 25)
+    with col2: pares = st.slider("Números pares", 0, config["sorteadas"], config["sorteadas"]//2)
+    with col3: consecutivos = st.slider("Máx. consecutivos", 1, 6, 3)
+
+    if st.button("🚀 Gerar Jogos com Filtros", type="primary", use_container_width=True):
+        jogos = []
+        for _ in range(qtd):
+            while True:
+                jogo = sorted(random.sample(range(1, config["total"]+1), config["sorteadas"]))
+                num_pares = len([x for x in jogo if x % 2 == 0])
+                num_consec = max([jogo[i+1] - jogo[i] for i in range(len(jogo)-1)], default=0)
+                if num_pares == pares and num_consec <= consecutivos:
+                    jogos.append(jogo)
+                    break
+        st.dataframe(pd.DataFrame(jogos, columns=[f"D{i+1}" for i in range(config["sorteadas"])]), use_container_width=True)
+
+# TAB 3 - ESTATÍSTICAS COM IA
+with tab3:
+    st.subheader("📊 Estatísticas Inteligentes com IA")
+    if st.button("Atualizar Estatísticas"):
+        todos = np.concatenate(df.values)
+        freq = Counter(todos)
+        st.write("**Números mais sorteados**")
+        st.bar_chart(pd.Series(freq).sort_values(ascending=False).head(15))
+        st.write("**Atrasos atuais**")
+        atrasos = {n: sum(1 for i in range(len(df)-1, -1, -1) if n not in df.iloc[i].values) for n in range(1, config["total"]+1)}
+        st.dataframe(pd.DataFrame.from_dict(atrasos, orient='index', columns=['Atraso']).sort_values('Atraso', ascending=False).head(15))
+
+# TAB 4 - SIMULADOR HISTÓRICO
+with tab4:
+    st.subheader("📈 Simulador Histórico Avançado")
+    st.info("Cole seus jogos (um por linha, separado por espaço ou vírgula)")
+    jogos_teste = st.text_area("Jogos para simular", height=200)
+    if st.button("Simular contra Histórico"):
+        if jogos_teste.strip():
+            jogos = [[int(x) for x in linha.replace(",", " ").split() if x.isdigit()] for linha in jogos_teste.strip().split("\n") if len([int(x) for x in linha.replace(",", " ").split() if x.isdigit()]) == config["sorteadas"]]
+            resultados = []
+            for jogo in jogos:
+                acertos = [sum(1 for n in jogo if n in row) for row in df.values]
+                resultados.append({"Jogo": sorted(jogo), "Melhor": max(acertos), "Média": round(np.mean(acertos), 1)})
+            st.dataframe(pd.DataFrame(resultados))
+
+# TAB 5 - BACKTESTING AUTOMÁTICO
+with tab5:
+    st.subheader("📉 Backtesting Automático")
+    if st.button("🚀 Executar Backtesting nos últimos 100 concursos", type="primary", use_container_width=True):
+        with st.spinner("Executando backtesting..."):
+            n = min(100, len(df))
+            acertos_total = [sum(1 for n in random.sample(range(1, config["total"]+1), config["sorteadas"]) if n in df.iloc[i].values) for i in range(n)]
+            st.write(f"**Média de acertos:** {np.mean(acertos_total):.2f} pontos")
+            st.write(f"**Taxa de 11+ pontos:** {sum(1 for a in acertos_total if a >= 11)/n*100:.1f}%")
+            st.write(f"**Taxa de 13+ pontos:** {sum(1 for a in acertos_total if a >= 13)/n*100:.1f}%")
+            st.bar_chart(pd.Series(acertos_total).value_counts().sort_index())
+
+# TAB 6 - BOLÃO OPTIMIZER
+with tab6:
+    st.subheader("🤝 Bolão Optimizer (Otimizado pelo Ciclo)")
+    st.info("Gera bolões com máxima cobertura baseado na fase atual do ciclo")
+    num_jogos_bolao = st.slider("Quantidade de jogos no bolão", 10, 100, 25)
+    valor_aposta = st.number_input("Valor por jogo (R$)", value=2.50, step=0.50)
+
+    if st.button("🚀 Gerar Bolão Otimizado pelo Ciclo", type="primary", use_container_width=True):
+        jogos_bolao = []
+        for _ in range(num_jogos_bolao):
+            if fase == "FIM" and len(faltantes) > 0:
+                num_faltantes = min(13, len(faltantes))
+                faltantes_escolhidas = random.sample(faltantes, num_faltantes)
+                restantes = list(set(range(1, config["total"]+1)) - set(faltantes_escolhidas))
+                completar = random.sample(restantes, config["sorteadas"] - num_faltantes)
+                jogo = sorted(faltantes_escolhidas + completar)
+            elif fase == "MEIO":
+                pool = faltantes * 2 + list(range(1, config["total"]+1))
+                jogo = sorted(random.sample(pool, config["sorteadas"]))
+            else:
+                jogo = sorted(random.sample(range(1, config["total"]+1), config["sorteadas"]))
+            jogos_bolao.append(jogo)
+        
+        df_bolao = pd.DataFrame(jogos_bolao, columns=[f"D{i+1}" for i in range(config["sorteadas"])])
+        st.dataframe(df_bolao, use_container_width=True)
+        custo_total = num_jogos_bolao * valor_aposta
+        st.success(f"✅ Bolão gerado com {num_jogos_bolao} jogos • Custo estimado: R$ {custo_total:.2f}")
+
+# TAB 7 - MEU PERFIL & APRENDIZADO (Motor Avançado)
 with tab7:
     st.subheader("👤 Meu Perfil & Aprendizado Pessoal")
     st.info("Informe quantos pontos você acertou. O sistema aprende com você e melhora os próximos jogos.")
