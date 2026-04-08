@@ -120,7 +120,7 @@ tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
     "👤 Meu Perfil & Aprendizado"
 ])
 
-# TAB 1 - FECHAMENTO INTELIGENTE
+# TAB 1 - FECHAMENTO INTELIGENTE (com aprendizado)
 with tab1:
     st.subheader("🔥 Fechamento Inteligente Recomendado pela IA")
     if st.button("🚀 Gerar Fechamento Inteligente", type="primary", use_container_width=True):
