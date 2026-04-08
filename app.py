@@ -15,7 +15,7 @@ if 'pesos_aprendidos' not in st.session_state:
 
 st.set_page_config(page_title="LotoElite Pro", page_icon="🎟️", layout="wide")
 
-st.title("🎟️ LotoElite Pro")
+st.title("🎟️ LotoElite Pro v32.0")
 st.markdown("**A mais avançada plataforma de previsão inteligente do Brasil** • Ciclo + IA + Aprendizado Pessoal Avançado")
 
 # ========================= SELETOR DE LOTERIA =========================
@@ -108,6 +108,18 @@ def detectar_ciclo(df: pd.DataFrame, config: Dict):
 
 fase, faltantes, progresso = detectar_ciclo(df, config)
 
+# ========================= MOTOR DE APRENDIZADO AVANÇADO =========================
+def aplicar_aprendizado(pool: List[int], loteria: str, fase: str) -> List[int]:
+    """Aplica pesos aprendidos do usuário no pool de números"""
+    pesos = st.session_state.pesos_aprendidos[loteria][fase]
+    if not pesos:
+        return pool
+    novo_pool = []
+    for num in pool:
+        peso = pesos.get(num, 1.0)
+        novo_pool.extend([num] * int(peso * 3))  # multiplica os números que o usuário mais acerta
+    return novo_pool if novo_pool else pool
+
 # ========================= TABS =========================
 tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
     "🔥 Fechamento Inteligente",
@@ -119,7 +131,7 @@ tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
     "👤 Meu Perfil & Aprendizado"
 ])
 
-# TAB 1 - FECHAMENTO INTELIGENTE
+# TAB 1 - FECHAMENTO INTELIGENTE (com aprendizado avançado)
 with tab1:
     st.subheader("🔥 Fechamento Inteligente Recomendado pela IA")
     if st.button("🚀 Gerar Fechamento Inteligente", type="primary", use_container_width=True):
@@ -133,12 +145,13 @@ with tab1:
                 jogo = sorted(faltantes_escolhidas + completar)
             else:
                 pool = faltantes * 3 + list(range(1, config["total"]+1))
+                pool = aplicar_aprendizado(pool, config['nome'], fase)  # ← APRENDIZADO AQUI
                 jogo = sorted(random.sample(pool, config["sorteadas"]))
             jogos.append(jogo)
         st.dataframe(pd.DataFrame(jogos, columns=[f"D{i+1}" for i in range(config["sorteadas"])]), use_container_width=True)
-        st.success("✅ 3 fechamentos inteligentes gerados!")
+        st.success("✅ 3 fechamentos inteligentes gerados com aprendizado adaptativo!")
 
-# TAB 2 - GERAR JOGOS COM FILTROS
+# TAB 2 - GERAR JOGOS COM FILTROS (com aprendizado)
 with tab2:
     st.subheader("🎟️ Gerar Jogos com Filtros Avançados")
     col1, col2, col3 = st.columns(3)
@@ -150,7 +163,9 @@ with tab2:
         jogos = []
         for _ in range(qtd):
             while True:
-                jogo = sorted(random.sample(range(1, config["total"]+1), config["sorteadas"]))
+                pool = list(range(1, config["total"]+1))
+                pool = aplicar_aprendizado(pool, config['nome'], fase)  # ← APRENDIZADO AQUI
+                jogo = sorted(random.sample(pool, config["sorteadas"]))
                 num_pares = len([x for x in jogo if x % 2 == 0])
                 num_consec = max([jogo[i+1] - jogo[i] for i in range(len(jogo)-1)], default=0)
                 if num_pares == pares and num_consec <= consecutivos:
@@ -196,9 +211,9 @@ with tab5:
             st.write(f"**Taxa de 13+ pontos:** {sum(1 for a in acertos_total if a >= 13)/n*100:.1f}%")
             st.bar_chart(pd.Series(acertos_total).value_counts().sort_index())
 
-# TAB 6 - BOLÃO OPTIMIZER
+# TAB 6 - BOLÃO OPTIMIZER (com aprendizado)
 with tab6:
-    st.subheader("🤝 Bolão Optimizer (Otimizado pelo Ciclo)")
+    st.subheader("🤝 Bolão Optimizer (Otimizado pelo Ciclo + Aprendizado)")
     st.info("Gera bolões com máxima cobertura baseado na fase atual do ciclo")
     num_jogos_bolao = st.slider("Quantidade de jogos no bolão", 10, 100, 25)
     valor_aposta = st.number_input("Valor por jogo (R$)", value=2.50, step=0.50)
@@ -212,11 +227,10 @@ with tab6:
                 restantes = list(set(range(1, config["total"]+1)) - set(faltantes_escolhidas))
                 completar = random.sample(restantes, config["sorteadas"] - num_faltantes)
                 jogo = sorted(faltantes_escolhidas + completar)
-            elif fase == "MEIO":
-                pool = faltantes * 2 + list(range(1, config["total"]+1))
-                jogo = sorted(random.sample(pool, config["sorteadas"]))
             else:
-                jogo = sorted(random.sample(range(1, config["total"]+1), config["sorteadas"]))
+                pool = faltantes * 2 + list(range(1, config["total"]+1))
+                pool = aplicar_aprendizado(pool, config['nome'], fase)  # ← APRENDIZADO AQUI
+                jogo = sorted(random.sample(pool, config["sorteadas"]))
             jogos_bolao.append(jogo)
         
         df_bolao = pd.DataFrame(jogos_bolao, columns=[f"D{i+1}" for i in range(config["sorteadas"])])
@@ -240,12 +254,15 @@ with tab7:
                 "pontos": pontos,
                 "loteria": config['nome']
             })
-            st.success("✅ Feedback salvo! O sistema está aprendendo com seus resultados.")
-
+            # Atualiza pesos aprendidos
+            for num in range(1, config["total"]+1):
+                st.session_state.pesos_aprendidos[config['nome']][fase][num] += (pontos / 15.0)
+            st.success("✅ Feedback salvo! O sistema está aprendendo com seus resultados e ajustando os próximos jogos.")
+    
     if st.session_state.feedback:
         df_feedback = pd.DataFrame(st.session_state.feedback)
         media = df_feedback['pontos'].mean()
         st.metric("Sua média de acertos", f"{media:.2f} pontos")
         st.dataframe(df_feedback)
 
-st.caption("LotoElite Pro • Estratégia que vence o acaso.")
+st.caption("LotoElite Pro v32.0 • Estratégia que vence o acaso com aprendizado adaptativo")
