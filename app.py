@@ -15,7 +15,7 @@ if 'pesos_aprendidos' not in st.session_state:
 
 st.set_page_config(page_title="LotoElite Pro", page_icon="🎟️", layout="wide")
 
-st.title("🎟️ LotoElite Pro v33.0 FINAL")
+st.title("🎟️ LotoElite Pro")
 st.markdown("**A mais avançada plataforma de previsão inteligente do Brasil** • Ciclo + IA + Aprendizado Pessoal Avançado")
 
 # ========================= SELETOR DE LOTERIA =========================
@@ -116,7 +116,7 @@ def aplicar_aprendizado(pool: List[int], loteria: str, fase: str) -> List[int]:
     novo_pool = []
     for num in pool:
         peso = pesos.get(num, 1.0)
-        novo_pool.extend([num] * max(1, int(peso * 4)))   # peso mais forte na v33.0
+        novo_pool.extend([num] * max(1, int(peso * 4)))
     return novo_pool if novo_pool else pool
 
 def recomendacao_estrategia(fase: str, progresso: float) -> str:
@@ -162,7 +162,7 @@ with tab1:
         st.success("✅ 3 fechamentos inteligentes gerados com aprendizado adaptativo!")
         st.download_button("📥 Baixar jogos em CSV", pd.DataFrame(jogos).to_csv(index=False), "jogos_lotoelite.csv", "text/csv")
 
-# TAB 2 - GERAR JOGOS COM FILTROS (com aprendizado)
+# TAB 2 - GERAR JOGOS COM FILTROS
 with tab2:
     st.subheader("🎟️ Gerar Jogos com Filtros Avançados")
     col1, col2, col3 = st.columns(3)
@@ -210,7 +210,7 @@ with tab4:
                 resultados.append({"Jogo": sorted(jogo), "Melhor": max(acertos), "Média": round(np.mean(acertos), 1)})
             st.dataframe(pd.DataFrame(resultados))
 
-# TAB 5 - BACKTESTING AUTOMÁTICO (agora inteligente)
+# TAB 5 - BACKTESTING AUTOMÁTICO (inteligente)
 with tab5:
     st.subheader("📉 Backtesting Automático com IA")
     if st.button("🚀 Executar Backtesting Inteligente (últimos 100)", type="primary", use_container_width=True):
@@ -280,11 +280,10 @@ with tab7:
         st.metric("Sua média de acertos", f"{media:.2f} pontos")
         st.dataframe(df_feedback)
         
-        # Visualização dos pesos aprendidos
         st.subheader("🔢 Números que a IA está priorizando para você")
         pesos_atuais = st.session_state.pesos_aprendidos[config['nome']][fase]
         if pesos_atuais:
             df_pesos = pd.DataFrame(list(pesos_atuais.items()), columns=["Número", "Peso"]).sort_values("Peso", ascending=False).head(15)
             st.dataframe(df_pesos, use_container_width=True)
 
-st.caption("LotoElite Pro v33.0 FINAL • Estratégia que vence o acaso com aprendizado adaptativo")
+st.caption("LotoElite Pro • Estratégia que vence o acaso com aprendizado adaptativo")
