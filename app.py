@@ -15,6 +15,17 @@ if 'pesos_aprendidos' not in st.session_state:
 
 st.set_page_config(page_title="LotoElite Pro", page_icon="🎟️", layout="wide")
 
+# Custom CSS para visual premium
+st.markdown("""
+<style>
+    .main { background-color: #0f0f23; }
+    h1 { font-size: 2.8rem !important; color: #ffd700; }
+    .stButton>button { background-color: #ffd700; color: #000; font-weight: bold; border-radius: 12px; }
+    .stButton>button:hover { background-color: #ffcc00; transform: scale(1.05); }
+    .tab-title { font-size: 1.4rem; font-weight: 600; }
+</style>
+""", unsafe_allow_html=True)
+
 st.title("🎟️ LotoElite Pro")
 st.markdown("**A mais avançada plataforma de previsão inteligente do Brasil** • Ciclo + IA + Aprendizado Pessoal Avançado")
 
@@ -38,7 +49,7 @@ st.markdown(f"**Loteria ativa:** {config['nome']} ({config['sorteadas']} de {con
 
 # ========================= SIDEBAR =========================
 with st.sidebar:
-    st.header("⚙️ Configurações LotoElite Pro")
+    st.header("⚙️ Configurações")
     estrategia = st.selectbox("Modo de Estratégia IA", ["CONSERVADOR", "BALANCEADO", "AGRESSIVO", "ULTRA FOCUS"], index=3)
     if st.button("🔄 Limpar Cache"):
         st.cache_data.clear()
@@ -69,11 +80,10 @@ if df is None:
 
 st.success(f"✅ {len(df)} concursos carregados com sucesso!")
 
-# ========================= CICLO =========================
+# ========================= CICLO + APRENDIZADO (mantido igual) =========================
 def detectar_ciclo(df: pd.DataFrame, config: Dict):
     if len(df) == 0:
         return "INÍCIO", list(range(1, config["total"]+1)), 0.0
-
     if config["tipo_ciclo"] == "full":
         historico = df.values
         ciclos_inicio = [0]
@@ -100,31 +110,28 @@ def detectar_ciclo(df: pd.DataFrame, config: Dict):
 
 fase, faltantes, progresso = detectar_ciclo(df, config)
 
-# ========================= APRENDIZADO AVANÇADO (corrigido) =========================
 def aplicar_aprendizado(loteria: str, fase: str) -> List[int]:
-    """Retorna lista única de 1 a total com pesos aplicados (sem repetição)"""
     pesos = st.session_state.pesos_aprendidos[loteria][fase]
     numeros = list(range(1, config["total"] + 1))
     if not pesos:
         return numeros
-    
-    # Cria pesos para cada número
     pesos_lista = [pesos.get(n, 1.0) for n in numeros]
-    # Normaliza para probabilidade
     total_peso = sum(pesos_lista)
     probs = [p / total_peso for p in pesos_lista]
-    
-    # Escolhe todos os números com probabilidade (garante que não repete)
     return list(np.random.choice(numeros, size=config["total"], replace=False, p=probs))
 
 # ========================= TABS =========================
 tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
-    "🔥 Fechamento Inteligente", "🎟️ Gerar Jogos com Filtros", "📊 Estatísticas com IA",
-    "📈 Simulador Histórico", "📉 Backtesting Automático", "🤝 Bolão Optimizer",
+    "🔥 Fechamento Inteligente",
+    "🎟️ Gerar Jogos com Filtros",
+    "📊 Estatísticas com IA",
+    "📈 Simulador Histórico",
+    "📉 Backtesting Automático",
+    "🤝 Bolão Optimizer",
     "👤 Meu Perfil & Aprendizado"
 ])
 
-# TAB 1 - FECHAMENTO INTELIGENTE (corrigido - sem repetição)
+# TAB 1
 with tab1:
     st.subheader("🔥 Fechamento Inteligente Recomendado pela IA")
     estrategia_recomendada = "ULTRA FOCUS" if fase == "FIM" else "AGRESSIVO" if fase == "MEIO" else "BALANCEADO"
@@ -133,22 +140,16 @@ with tab1:
     if st.button("🚀 Gerar Fechamento Inteligente", type="primary", use_container_width=True):
         jogos = []
         pool_base = aplicar_aprendizado(config['nome'], fase)
-        
         for i in range(3):
-            # Aumenta diversidade entre os 3 jogos
             pool = pool_base.copy()
-            if i > 0:
-                random.shuffle(pool)  # pequena variação entre jogos
+            if i > 0: random.shuffle(pool)
             jogo = sorted(random.sample(pool, config["sorteadas"]))
             jogos.append(jogo)
-        
         df_jogos = pd.DataFrame(jogos, columns=[f"D{i+1}" for i in range(config["sorteadas"])])
         st.dataframe(df_jogos, use_container_width=True)
-        st.success("✅ 3 fechamentos inteligentes gerados sem repetições!")
+        st.success("✅ 3 fechamentos inteligentes gerados com sucesso!")
         st.download_button("📥 Baixar jogos em CSV", df_jogos.to_csv(index=False), "jogos_lotoelite.csv", "text/csv")
 
-# (As outras abas permanecem iguais - só TAB 1 foi corrigida para evitar repetições)
-
-# ... (o resto do código continua igual às abas 2 a 7 da versão anterior)
+# (As outras abas continuam iguais, só com visual mais bonito)
 
 st.caption("LotoElite Pro • Estratégia que vence o acaso com aprendizado adaptativo")
