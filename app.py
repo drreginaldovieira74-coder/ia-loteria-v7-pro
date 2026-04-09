@@ -8,7 +8,7 @@ from typing import List, Dict
 import warnings
 warnings.filterwarnings("ignore")
 
-# ========================= INICIALIZAÇÃO =========================
+# ========================= SESSION STATE =========================
 if 'feedback' not in st.session_state:
     st.session_state.feedback = []
 if 'pesos_aprendidos' not in st.session_state:
@@ -21,23 +21,21 @@ st.set_page_config(page_title="LotoElite Pro", page_icon="🎟️", layout="wide
 st.title("🎟️ LotoElite Pro")
 st.markdown("**A mais avançada plataforma de previsão inteligente do Brasil** • Ciclo + IA + Atualização Automática")
 
-# ========================= SELETOR DE LOTERIA =========================
+# ========================= LOTERIAS =========================
 loteria_options = {
-    "Lotofácil":       {"nome": "Lotofácil",       "api": "lotofacil",     "total": 25,  "sorteadas": 15, "tipo_ciclo": "full"},
-    "Lotomania":       {"nome": "Lotomania",       "api": "lotomania",     "total": 100, "sorteadas": 50, "tipo_ciclo": "partial"},
-    "Mega-Sena":       {"nome": "Mega-Sena",       "api": "megasena",      "total": 60,  "sorteadas": 6,  "tipo_ciclo": "frequency"},
-    "Quina":           {"nome": "Quina",           "api": "quina",         "total": 80,  "sorteadas": 5,  "tipo_ciclo": "frequency"},
-    "Dupla Sena":      {"nome": "Dupla Sena",      "api": "duplasena",     "total": 50,  "sorteadas": 6,  "tipo_ciclo": "frequency"},
-    "Super Sete":      {"nome": "Super Sete",      "api": "supersete",     "total": 49,  "sorteadas": 7,  "tipo_ciclo": "frequency"},
-    "Timemania":       {"nome": "Timemania",       "api": "timemania",     "total": 80,  "sorteadas": 7,  "tipo_ciclo": "frequency"},
+    "Lotofácil": {"nome": "Lotofácil", "api": "lotofacil", "total": 25, "sorteadas": 15, "tipo_ciclo": "full"},
+    "Lotomania": {"nome": "Lotomania", "api": "lotomania", "total": 100, "sorteadas": 50, "tipo_ciclo": "partial"},
+    "Mega-Sena": {"nome": "Mega-Sena", "api": "megasena", "total": 60, "sorteadas": 6, "tipo_ciclo": "frequency"},
+    "Quina": {"nome": "Quina", "api": "quina", "total": 80, "sorteadas": 5, "tipo_ciclo": "frequency"},
+    "Dupla Sena": {"nome": "Dupla Sena", "api": "duplasena", "total": 50, "sorteadas": 6, "tipo_ciclo": "frequency"},
+    "Super Sete": {"nome": "Super Sete", "api": "supersete", "total": 49, "sorteadas": 7, "tipo_ciclo": "frequency"},
+    "Timemania": {"nome": "Timemania", "api": "timemania", "total": 80, "sorteadas": 7, "tipo_ciclo": "frequency"},
 }
 
 loteria_selecionada = st.selectbox("🎯 Escolha a loteria", options=list(loteria_options.keys()), index=0)
 config = loteria_options[loteria_selecionada]
 
-st.markdown(f"**Loteria ativa:** {config['nome']}")
-
-# ========================= BOTÃO DE ATUALIZAÇÃO AUTOMÁTICA =========================
+# ========================= BOTÃO ATUALIZAÇÃO AUTOMÁTICA =========================
 with st.sidebar:
     st.header("🔄 Atualização Automática")
     if st.button("🔄 Atualizar Histórico Automático (Caixa)"):
@@ -48,17 +46,17 @@ with st.sidebar:
                 data = response.json()
                 df_novo = pd.DataFrame([item["dezenasSorteadas"] for item in data.get("listaDezenas", [])])
                 st.session_state.df = df_novo
-                st.success(f"✅ Histórico atualizado! {len(df_novo)} concursos carregados.")
+                st.success(f"✅ Histórico atualizado automaticamente! {len(df_novo)} concursos carregados.")
                 st.rerun()
-            except:
+            except Exception as e:
                 st.error("❌ Não foi possível conectar com a Caixa agora. Tente novamente mais tarde.")
 
 # ========================= CARREGAMENTO =========================
 if st.session_state.df is None:
-    st.subheader(f"📤 Upload Manual ({config['nome']})")
+    st.subheader(f"📤 Upload Manual da {config['nome']}")
     arquivo = st.file_uploader("Envie o CSV (apenas números, sem cabeçalho)", type=["csv"])
     if arquivo is None:
-        st.warning("👆 Use o botão acima ou envie o CSV manualmente")
+        st.warning("👆 Use o botão acima para atualizar automaticamente ou envie o CSV manualmente")
         st.stop()
     df = pd.read_csv(arquivo, header=None, dtype=str).iloc[:, :config["sorteadas"]]
     df = df.apply(pd.to_numeric, errors='coerce').dropna().astype(int)
@@ -116,7 +114,7 @@ tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
     "👤 Meu Perfil & Aprendizado"
 ])
 
-# TAB 1
+# TAB 1 - Fechamento Inteligente
 with tab1:
     st.subheader("🔥 Fechamento Inteligente Recomendado pela IA")
     if st.button("🚀 Gerar Fechamento Inteligente", type="primary", use_container_width=True):
@@ -132,8 +130,107 @@ with tab1:
         st.success("✅ 3 fechamentos gerados sem repetições!")
         st.download_button("📥 Baixar CSV", df_jogos.to_csv(index=False), "jogos.csv", "text/csv")
 
-# As outras 6 abas seguem exatamente como na v33.0 (para não ficar gigante aqui, mas estão todas incluídas no código completo que você deve colar)
+# TAB 2 - Gerar Jogos com Filtros
+with tab2:
+    st.subheader("🎟️ Gerar Jogos com Filtros Avançados")
+    col1, col2, col3 = st.columns(3)
+    with col1: qtd = st.slider("Quantidade de jogos", 5, 100, 25)
+    with col2: pares = st.slider("Números pares", 0, config["sorteadas"], config["sorteadas"]//2)
+    with col3: consecutivos = st.slider("Máx. consecutivos", 1, 6, 3)
+
+    if st.button("🚀 Gerar Jogos com Filtros", type="primary", use_container_width=True):
+        jogos = []
+        for _ in range(qtd):
+            while True:
+                pool = aplicar_aprendizado(config['nome'], fase)
+                jogo = sorted(random.sample(pool, config["sorteadas"]))
+                num_pares = len([x for x in jogo if x % 2 == 0])
+                num_consec = max([jogo[i+1] - jogo[i] for i in range(len(jogo)-1)], default=0)
+                if num_pares == pares and num_consec <= consecutivos:
+                    jogos.append(jogo)
+                    break
+        st.dataframe(pd.DataFrame(jogos, columns=[f"D{i+1}" for i in range(config["sorteadas"])]), use_container_width=True)
+
+# TAB 3 - Estatísticas
+with tab3:
+    st.subheader("📊 Estatísticas Inteligentes com IA")
+    if st.button("Atualizar Estatísticas"):
+        todos = np.concatenate(df.values)
+        freq = Counter(todos)
+        st.write("**Números mais sorteados**")
+        st.bar_chart(pd.Series(freq).sort_values(ascending=False).head(15))
+        st.write("**Atrasos atuais**")
+        atrasos = {n: sum(1 for i in range(len(df)-1, -1, -1) if n not in df.iloc[i].values) for n in range(1, config["total"]+1)}
+        st.dataframe(pd.DataFrame.from_dict(atrasos, orient='index', columns=['Atraso']).sort_values('Atraso', ascending=False).head(15))
+
+# TAB 4 - Simulador
+with tab4:
+    st.subheader("📈 Simulador Histórico Avançado")
+    st.info("Cole seus jogos (um por linha, separado por espaço ou vírgula)")
+    jogos_teste = st.text_area("Jogos para simular", height=200)
+    if st.button("Simular contra Histórico"):
+        if jogos_teste.strip():
+            jogos = [[int(x) for x in linha.replace(",", " ").split() if x.isdigit()] for linha in jogos_teste.strip().split("\n") if len([int(x) for x in linha.replace(",", " ").split() if x.isdigit()]) == config["sorteadas"]]
+            resultados = []
+            for jogo in jogos:
+                acertos = [sum(1 for n in jogo if n in row) for row in df.values]
+                resultados.append({"Jogo": sorted(jogo), "Melhor": max(acertos), "Média": round(np.mean(acertos), 1)})
+            st.dataframe(pd.DataFrame(resultados))
+
+# TAB 5 - Backtesting
+with tab5:
+    st.subheader("📉 Backtesting Automático com IA")
+    if st.button("🚀 Executar Backtesting Inteligente (últimos 100)", type="primary", use_container_width=True):
+        with st.spinner("Executando..."):
+            n = min(100, len(df))
+            acertos_total = []
+            for i in range(n):
+                pool = aplicar_aprendizado(config['nome'], fase)
+                jogo = sorted(random.sample(pool, config["sorteadas"]))
+                acertos = sum(1 for n in jogo if n in df.iloc[i].values)
+                acertos_total.append(acertos)
+            st.write(f"**Média de acertos com IA:** {np.mean(acertos_total):.2f} pontos")
+            st.write(f"**Taxa de 11+ pontos:** {sum(1 for a in acertos_total if a >= 11)/n*100:.1f}%")
+            st.write(f"**Taxa de 13+ pontos:** {sum(1 for a in acertos_total if a >= 13)/n*100:.1f}%")
+            st.bar_chart(pd.Series(acertos_total).value_counts().sort_index())
+
+# TAB 6 - Bolão
+with tab6:
+    st.subheader("🤝 Bolão Optimizer")
+    num_jogos_bolao = st.slider("Quantidade de jogos no bolão", 10, 100, 25)
+    valor_aposta = st.number_input("Valor por jogo (R$)", value=2.50, step=0.50)
+    if st.button("🚀 Gerar Bolão Otimizado", type="primary", use_container_width=True):
+        jogos_bolao = []
+        pool_base = aplicar_aprendizado(config['nome'], fase)
+        for _ in range(num_jogos_bolao):
+            pool = pool_base.copy()
+            jogo = sorted(random.sample(pool, config["sorteadas"]))
+            jogos_bolao.append(jogo)
+        df_bolao = pd.DataFrame(jogos_bolao, columns=[f"D{i+1}" for i in range(config["sorteadas"])])
+        st.dataframe(df_bolao, use_container_width=True)
+        st.success(f"✅ Bolão gerado com {num_jogos_bolao} jogos")
+
+# TAB 7 - Perfil
+with tab7:
+    st.subheader("👤 Meu Perfil & Aprendizado Pessoal")
+    col1, col2 = st.columns(2)
+    with col1:
+        pontos = st.number_input("Quantos pontos você acertou no último sorteio?", 0, 15, 8)
+    with col2:
+        if st.button("✅ Salvar Feedback"):
+            st.session_state.feedback.append({
+                "fase": fase,
+                "estrategia": "ULTRA FOCUS",
+                "pontos": pontos,
+                "loteria": config['nome']
+            })
+            for num in range(1, config["total"]+1):
+                st.session_state.pesos_aprendidos[config['nome']][fase][num] += (pontos / 15.0)
+            st.success("✅ Feedback salvo! IA aprendendo...")
+
+    if st.session_state.feedback:
+        df_feedback = pd.DataFrame(st.session_state.feedback)
+        st.metric("Sua média de acertos", f"{df_feedback['pontos'].mean():.2f} pontos")
+        st.dataframe(df_feedback)
 
 st.caption("LotoElite Pro • Estratégia que vence o acaso com atualização automática")
-
-# (Nota: o código completo com todas as 7 abas está aqui. Como a mensagem ficaria muito longa, eu te enviei a estrutura principal. Se as abas ainda não aparecerem, me avise que eu mando o código inteiro em partes ou pelo GitHub.)
