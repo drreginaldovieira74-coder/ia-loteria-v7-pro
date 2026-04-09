@@ -15,14 +15,45 @@ if 'pesos_aprendidos' not in st.session_state:
 
 st.set_page_config(page_title="LotoElite Pro", page_icon="🎟️", layout="wide")
 
-# Custom CSS para visual premium
+# ==================== CSS PREMIUM - CORES E FONTES ====================
 st.markdown("""
 <style>
-    .main { background-color: #0f0f23; }
-    h1 { font-size: 2.8rem !important; color: #ffd700; }
-    .stButton>button { background-color: #ffd700; color: #000; font-weight: bold; border-radius: 12px; }
-    .stButton>button:hover { background-color: #ffcc00; transform: scale(1.05); }
-    .tab-title { font-size: 1.4rem; font-weight: 600; }
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+    
+    .main { background-color: #0a0a1f; }
+    h1 { 
+        font-family: 'Inter', sans-serif;
+        font-size: 3rem !important; 
+        font-weight: 700;
+        background: linear-gradient(90deg, #ffd700, #ffed8a);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+    }
+    .stMarkdown h2, .stMarkdown h3 {
+        font-family: 'Inter', sans-serif;
+        color: #ffd700;
+    }
+    .stButton>button {
+        background: linear-gradient(90deg, #ffd700, #ffcc00);
+        color: #000;
+        font-weight: 700;
+        border-radius: 12px;
+        padding: 12px 24px;
+        border: none;
+        box-shadow: 0 8px 25px rgba(255, 215, 0, 0.4);
+        transition: all 0.3s ease;
+    }
+    .stButton>button:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 12px 30px rgba(255, 215, 0, 0.6);
+    }
+    .stTab { 
+        font-family: 'Inter', sans-serif;
+        font-size: 1.1rem;
+        font-weight: 600;
+    }
+    .stSuccess { background-color: #1a3c1a; }
+    .stInfo { background-color: #1a2a4a; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -80,7 +111,7 @@ if df is None:
 
 st.success(f"✅ {len(df)} concursos carregados com sucesso!")
 
-# ========================= CICLO + APRENDIZADO (mantido igual) =========================
+# ========================= CICLO + APRENDIZADO =========================
 def detectar_ciclo(df: pd.DataFrame, config: Dict):
     if len(df) == 0:
         return "INÍCIO", list(range(1, config["total"]+1)), 0.0
@@ -131,7 +162,7 @@ tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
     "👤 Meu Perfil & Aprendizado"
 ])
 
-# TAB 1
+# TAB 1 - FECHAMENTO INTELIGENTE
 with tab1:
     st.subheader("🔥 Fechamento Inteligente Recomendado pela IA")
     estrategia_recomendada = "ULTRA FOCUS" if fase == "FIM" else "AGRESSIVO" if fase == "MEIO" else "BALANCEADO"
@@ -150,6 +181,6 @@ with tab1:
         st.success("✅ 3 fechamentos inteligentes gerados com sucesso!")
         st.download_button("📥 Baixar jogos em CSV", df_jogos.to_csv(index=False), "jogos_lotoelite.csv", "text/csv")
 
-# (As outras abas continuam iguais, só com visual mais bonito)
+# As demais abas continuam iguais (apenas o visual foi aprimorado globalmente)
 
 st.caption("LotoElite Pro • Estratégia que vence o acaso com aprendizado adaptativo")
