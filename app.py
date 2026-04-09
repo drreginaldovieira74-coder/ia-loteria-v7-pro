@@ -25,7 +25,7 @@ st.markdown("""
          -webkit-text-fill-color: transparent; }
     .stButton>button { background: linear-gradient(90deg, #ffd700, #ffcc00); color: #000;
                        font-weight: 700; border-radius: 12px; padding: 12px 24px; }
-    .stButton>button:hover { transform: scale(1.05); box-shadow: 0 12px 30px rgba(255, 215, 0, 0.6); }
+    .stButton>button:hover { transform: scale(1.05); }
     .stTab { font-family: 'Inter', sans-serif; font-size: 1.1rem; font-weight: 600; }
 </style>
 """, unsafe_allow_html=True)
@@ -125,7 +125,7 @@ def aplicar_aprendizado(loteria: str, fase: str) -> List[int]:
     probs = [p / total_peso for p in pesos_lista]
     return list(np.random.choice(numeros, size=config["total"], replace=False, p=probs))
 
-# ========================= TABS =========================
+# ========================= TABS COMPLETAS =========================
 tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
     "🔥 Fechamento Inteligente",
     "🎟️ Gerar Jogos com Filtros",
@@ -141,7 +141,6 @@ with tab1:
     st.subheader("🔥 Fechamento Inteligente Recomendado pela IA")
     estrategia_recomendada = "ULTRA FOCUS" if fase == "FIM" else "AGRESSIVO" if fase == "MEIO" else "BALANCEADO"
     st.info(f"**IA Oracle recomenda:** {estrategia_recomendada} | Confiança: **{int(25 + progresso/2)}%**")
-    
     if st.button("🚀 Gerar Fechamento Inteligente", type="primary", use_container_width=True):
         jogos = []
         pool_base = aplicar_aprendizado(config['nome'], fase)
@@ -205,7 +204,7 @@ with tab4:
 with tab5:
     st.subheader("📉 Backtesting Automático com IA")
     if st.button("🚀 Executar Backtesting Inteligente (últimos 100)", type="primary", use_container_width=True):
-        with st.spinner("Executando backtesting..."):
+        with st.spinner("Executando..."):
             n = min(100, len(df))
             acertos_total = []
             for i in range(n):
@@ -220,33 +219,26 @@ with tab5:
 
 # TAB 6
 with tab6:
-    st.subheader("🤝 Bolão Optimizer (Otimizado pelo Ciclo + Aprendizado)")
+    st.subheader("🤝 Bolão Optimizer")
     num_jogos_bolao = st.slider("Quantidade de jogos no bolão", 10, 100, 25)
     valor_aposta = st.number_input("Valor por jogo (R$)", value=2.50, step=0.50)
-    if st.button("🚀 Gerar Bolão Otimizado pelo Ciclo", type="primary", use_container_width=True):
+    if st.button("🚀 Gerar Bolão Otimizado", type="primary", use_container_width=True):
         jogos_bolao = []
         for _ in range(num_jogos_bolao):
-            if fase == "FIM" and len(faltantes) > 0:
-                num_faltantes = min(13, len(faltantes))
-                faltantes_escolhidas = random.sample(faltantes, num_faltantes)
-                restantes = list(set(range(1, config["total"]+1)) - set(faltantes_escolhidas))
-                completar = random.sample(restantes, config["sorteadas"] - num_faltantes)
-                jogo = sorted(faltantes_escolhidas + completar)
-            else:
-                pool = aplicar_aprendizado(config['nome'], fase)
-                jogo = sorted(random.sample(pool, config["sorteadas"]))
+            pool = aplicar_aprendizado(config['nome'], fase)
+            jogo = sorted(random.sample(pool, config["sorteadas"]))
             jogos_bolao.append(jogo)
         df_bolao = pd.DataFrame(jogos_bolao, columns=[f"D{i+1}" for i in range(config["sorteadas"])])
         st.dataframe(df_bolao, use_container_width=True)
-        st.success(f"✅ Bolão gerado com {num_jogos_bolao} jogos • Custo estimado: R$ {num_jogos_bolao * valor_aposta:.2f}")
+        st.success(f"✅ Bolão gerado com {num_jogos_bolao} jogos")
 
 # TAB 7
 with tab7:
     st.subheader("👤 Meu Perfil & Aprendizado Pessoal")
-    st.info("Informe quantos pontos você acertou. O sistema aprende com você.")
+    st.info("Informe quantos pontos você acertou.")
     col1, col2 = st.columns(2)
     with col1:
-        pontos = st.number_input("Quantos pontos você acertou no último sorteio?", 0, 15, 8)
+        pontos = st.number_input("Quantos pontos você acertou?", 0, 15, 8)
     with col2:
         if st.button("✅ Salvar Feedback"):
             st.session_state.feedback.append({
@@ -254,7 +246,7 @@ with tab7:
             })
             for num in range(1, config["total"]+1):
                 st.session_state.pesos_aprendidos[config['nome']][fase][num] += (pontos / 15.0)
-            st.success("✅ Feedback salvo! O sistema está aprendendo com seus resultados.")
+            st.success("✅ Feedback salvo!")
     if st.session_state.feedback:
         df_feedback = pd.DataFrame(st.session_state.feedback)
         st.metric("Sua média de acertos", f"{df_feedback['pontos'].mean():.2f} pontos")
