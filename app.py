@@ -60,7 +60,7 @@ with st.sidebar:
                 except:
                     time.sleep(1.5)
             if not success:
-                st.error("❌ Não foi possível conectar com a Caixa após 3 tentativas. Use o upload manual abaixo.")
+                st.error("❌ Não foi possível conectar com a Caixa (API instável). Use o upload manual abaixo.")
 
 # ========================= DF =========================
 if st.session_state.df is None:
