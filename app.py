@@ -54,7 +54,7 @@ with st.sidebar:
             except:
                 st.error("❌ Não conectou com a Caixa agora. Use o upload manual.")
 
-# ========================= UPLOAD / DF =========================
+# ========================= DF =========================
 if st.session_state.df is None:
     st.subheader(f"📤 Upload Manual da {config['nome']}")
     arquivo = st.file_uploader("Envie o CSV (apenas números, sem cabeçalho)", type=["csv"])
@@ -124,73 +124,65 @@ with tab1:
         pool_base = aplicar_aprendizado(config['nome'], fase)
         for i in range(3):
             pool = pool_base.copy()
-            if i > 0:
-                random.shuffle(pool)
+            if i > 0: random.shuffle(pool)
             jogo = sorted(random.sample(pool, config["sorteadas"]))
             jogos.append(jogo)
         df_jogos = pd.DataFrame(jogos, columns=[f"D{i+1}" for i in range(config["sorteadas"])])
         st.dataframe(df_jogos, use_container_width=True)
         st.success("✅ 3 jogos Super Focus gerados sem repetições!")
 
-# TAB 2 - GERAR JOGOS COM FILTROS
-with tab2:
-    st.subheader("🎟️ Gerar Jogos com Filtros Avançados")
-    col1, col2, col3 = st.columns(3)
-    with col1: qtd = st.slider("Quantidade de jogos", 5, 100, 25)
-    with col2: pares = st.slider("Números pares", 0, config["sorteadas"], config["sorteadas"]//2)
-    with col3: consecutivos = st.slider("Máx. consecutivos", 1, 6, 3)
-    if st.button("🚀 Gerar Jogos com Filtros", type="primary", use_container_width=True):
-        jogos = []
-        for _ in range(qtd):
-            while True:
-                pool = aplicar_aprendizado(config['nome'], fase)
-                jogo = sorted(random.sample(pool, config["sorteadas"]))
-                num_pares = len([x for x in jogo if x % 2 == 0])
-                num_consec = max([jogo[i+1] - jogo[i] for i in range(len(jogo)-1)], default=0)
-                if num_pares == pares and num_consec <= consecutivos:
-                    jogos.append(jogo)
-                    break
-        st.dataframe(pd.DataFrame(jogos, columns=[f"D{i+1}" for i in range(config["sorteadas"])]), use_container_width=True)
-
-# TAB 3 - ESTATÍSTICAS
-with tab3:
-    st.subheader("📊 Estatísticas Inteligentes com IA")
-    if st.button("Atualizar Estatísticas"):
-        todos = np.concatenate(df.values)
-        freq = Counter(todos)
-        st.bar_chart(pd.Series(freq).sort_values(ascending=False).head(15))
-
-# TAB 4 - SIMULADOR
-with tab4:
-    st.subheader("📈 Simulador Histórico")
-    jogos_teste = st.text_area("Cole seus jogos (um por linha)")
-    if st.button("Simular"):
-        # (código simples de simulação)
-        st.info("Simulador funcionando - cole os jogos para testar")
-
-# TAB 5 - BACKTESTING
+# TAB 5 - BACKTESTING (corrigido)
 with tab5:
     st.subheader("📉 Backtesting Automático com IA")
-    if st.button("Executar Backtesting"):
-        st.info("Backtesting executado (média calculada)")
+    if st.button("🚀 Executar Backtesting Inteligente (últimos 100)", type="primary", use_container_width=True):
+        with st.spinner("Executando backtesting..."):
+            n = min(100, len(df))
+            acertos_total = []
+            for i in range(n):
+                pool = aplicar_aprendizado(config['nome'], fase)
+                jogo = sorted(random.sample(pool, config["sorteadas"]))
+                acertos = sum(1 for n in jogo if n in df.iloc[i].values)
+                acertos_total.append(acertos)
+            st.write(f"**Média de acertos com IA:** {np.mean(acertos_total):.2f} pontos")
+            st.write(f"**Taxa de 11+ pontos:** {sum(1 for a in acertos_total if a >= 11)/n*100:.1f}%")
+            st.write(f"**Taxa de 13+ pontos:** {sum(1 for a in acertos_total if a >= 13)/n*100:.1f}%")
+            st.bar_chart(pd.Series(acertos_total).value_counts().sort_index())
 
 # TAB 6 - BOLÃO
 with tab6:
     st.subheader("🤝 Bolão Optimizer")
-    if st.button("Gerar Bolão"):
-        st.info("Bolão gerado")
+    num_jogos = st.slider("Quantidade de jogos no bolão", 10, 100, 25)
+    if st.button("🚀 Gerar Bolão Otimizado", type="primary", use_container_width=True):
+        jogos = []
+        for _ in range(num_jogos):
+            pool = aplicar_aprendizado(config['nome'], fase)
+            jogo = sorted(random.sample(pool, config["sorteadas"]))
+            jogos.append(jogo)
+        df_bolao = pd.DataFrame(jogos, columns=[f"D{i+1}" for i in range(config["sorteadas"])])
+        st.dataframe(df_bolao, use_container_width=True)
+        st.success(f"✅ Bolão de {num_jogos} jogos gerado!")
 
-# TAB 7 - PERFIL
+# TAB 7 - PERFIL (corrigido)
 with tab7:
-    st.subheader("👤 Meu Perfil & Aprendizado")
+    st.subheader("👤 Meu Perfil & Aprendizado Pessoal")
     col1, col2 = st.columns(2)
     with col1:
-        pontos = st.number_input("Pontos acertados", 0, 15, 8)
+        pontos = st.number_input("Quantos pontos você acertou?", 0, 15, 8)
     with col2:
         if st.button("✅ Salvar Feedback"):
-            st.session_state.feedback.append({"fase": fase, "estrategia": estrategia, "pontos": pontos, "loteria": config['nome']})
+            st.session_state.feedback.append({
+                "fase": fase,
+                "estrategia": estrategia,
+                "pontos": pontos,
+                "loteria": config['nome']
+            })
             for num in range(1, config["total"]+1):
                 st.session_state.pesos_aprendidos[config['nome']][fase][num] += (pontos / 15.0)
-            st.success("Feedback salvo!")
+            st.success("✅ Feedback salvo! O sistema aprendeu com você.")
+
+    if st.session_state.feedback:
+        df_feedback = pd.DataFrame(st.session_state.feedback)
+        st.metric("Média de acertos", f"{df_feedback['pontos'].mean():.2f} pontos")
+        st.dataframe(df_feedback)
 
 st.caption("LotoElite Pro • Estratégia que vence o acaso com atualização automática")
