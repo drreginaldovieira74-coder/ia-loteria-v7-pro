@@ -115,7 +115,7 @@ tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
     "👤 Meu Perfil & Aprendizado"
 ])
 
-# TAB 1 - SUPER FOCUS
+# TAB 1
 with tab1:
     st.subheader("🔥 Fechamento Inteligente Recomendado pela IA")
     st.info(f"**Super Focus recomendado:** {'ULTRA FOCUS' if fase == 'FIM' else 'AGRESSIVO' if fase == 'MEIO' else 'BALANCEADO'} | Confiança: {int(25 + progresso/2)}%")
@@ -129,9 +129,9 @@ with tab1:
             jogos.append(jogo)
         df_jogos = pd.DataFrame(jogos, columns=[f"D{i+1}" for i in range(config["sorteadas"])])
         st.dataframe(df_jogos, use_container_width=True)
-        st.success("✅ 3 jogos Super Focus gerados sem repetições!")
+        st.success("✅ 3 jogos Super Focus gerados!")
 
-# TAB 2 - GERADOR DE JOGOS COM FILTROS (corrigido)
+# TAB 2 - GERAR JOGOS COM FILTROS
 with tab2:
     st.subheader("🎟️ Gerar Jogos com Filtros Avançados")
     col1, col2, col3 = st.columns(3)
@@ -151,7 +151,7 @@ with tab2:
                     break
         st.dataframe(pd.DataFrame(jogos, columns=[f"D{i+1}" for i in range(config["sorteadas"])]), use_container_width=True)
 
-# TAB 3 - ESTATÍSTICAS (corrigido)
+# TAB 3 - ESTATÍSTICAS
 with tab3:
     st.subheader("📊 Estatísticas Inteligentes com IA")
     if st.button("Atualizar Estatísticas"):
@@ -163,7 +163,7 @@ with tab3:
         atrasos = {n: sum(1 for i in range(len(df)-1, -1, -1) if n not in df.iloc[i].values) for n in range(1, config["total"]+1)}
         st.dataframe(pd.DataFrame.from_dict(atrasos, orient='index', columns=['Atraso']).sort_values('Atraso', ascending=False).head(15))
 
-# TAB 4 - SIMULADOR HISTÓRICO (corrigido)
+# TAB 4 - SIMULADOR
 with tab4:
     st.subheader("📈 Simulador Histórico Avançado")
     st.info("Cole seus jogos (um por linha, separado por espaço ou vírgula)")
@@ -178,6 +178,58 @@ with tab4:
                     resultados.append({"Jogo": sorted(jogo), "Melhor": max(acertos), "Média": round(np.mean(acertos), 1)})
             st.dataframe(pd.DataFrame(resultados))
 
-# As outras abas (5, 6 e 7) já estavam funcionando nas versões anteriores
+# TAB 5 - BACKTESTING
+with tab5:
+    st.subheader("📉 Backtesting Automático com IA")
+    if st.button("🚀 Executar Backtesting Inteligente (últimos 100)", type="primary", use_container_width=True):
+        with st.spinner("Executando backtesting..."):
+            n = min(100, len(df))
+            acertos_total = []
+            for i in range(n):
+                pool = aplicar_aprendizado(config['nome'], fase)
+                jogo = sorted(random.sample(pool, config["sorteadas"]))
+                acertos = sum(1 for n in jogo if n in df.iloc[i].values)
+                acertos_total.append(acertos)
+            st.write(f"**Média de acertos com IA:** {np.mean(acertos_total):.2f} pontos")
+            st.write(f"**Taxa de 11+ pontos:** {sum(1 for a in acertos_total if a >= 11)/n*100:.1f}%")
+            st.write(f"**Taxa de 13+ pontos:** {sum(1 for a in acertos_total if a >= 13)/n*100:.1f}%")
+            st.bar_chart(pd.Series(acertos_total).value_counts().sort_index())
+
+# TAB 6 - BOLÃO
+with tab6:
+    st.subheader("🤝 Bolão Optimizer")
+    num_jogos = st.slider("Quantidade de jogos no bolão", 10, 100, 25)
+    if st.button("🚀 Gerar Bolão Otimizado", type="primary", use_container_width=True):
+        jogos = []
+        for _ in range(num_jogos):
+            pool = aplicar_aprendizado(config['nome'], fase)
+            jogo = sorted(random.sample(pool, config["sorteadas"]))
+            jogos.append(jogo)
+        df_bolao = pd.DataFrame(jogos, columns=[f"D{i+1}" for i in range(config["sorteadas"])])
+        st.dataframe(df_bolao, use_container_width=True)
+        st.success(f"✅ Bolão de {num_jogos} jogos gerado!")
+
+# TAB 7 - PERFIL
+with tab7:
+    st.subheader("👤 Meu Perfil & Aprendizado Pessoal")
+    col1, col2 = st.columns(2)
+    with col1:
+        pontos = st.number_input("Quantos pontos você acertou?", 0, 15, 8)
+    with col2:
+        if st.button("✅ Salvar Feedback"):
+            st.session_state.feedback.append({
+                "fase": fase,
+                "estrategia": estrategia,
+                "pontos": pontos,
+                "loteria": config['nome']
+            })
+            for num in range(1, config["total"]+1):
+                st.session_state.pesos_aprendidos[config['nome']][fase][num] += (pontos / 15.0)
+            st.success("✅ Feedback salvo! O sistema aprendeu com você.")
+
+    if st.session_state.feedback:
+        df_feedback = pd.DataFrame(st.session_state.feedback)
+        st.metric("Média de acertos", f"{df_feedback['pontos'].mean():.2f} pontos")
+        st.dataframe(df_feedback)
 
 st.caption("LotoElite Pro • Estratégia que vence o acaso com atualização automática")
