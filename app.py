@@ -35,6 +35,8 @@ loteria_options = {
 loteria_selecionada = st.selectbox("🎯 Escolha a loteria", options=list(loteria_options.keys()), index=0)
 config = loteria_options[loteria_selecionada]
 
+st.markdown(f"**Loteria ativa:** {config['nome']}")
+
 # ========================= BOTÃO ATUALIZAÇÃO AUTOMÁTICA =========================
 with st.sidebar:
     st.header("🔄 Atualização Automática")
@@ -48,15 +50,15 @@ with st.sidebar:
                 st.session_state.df = df_novo
                 st.success(f"✅ Histórico atualizado automaticamente! {len(df_novo)} concursos carregados.")
                 st.rerun()
-            except Exception as e:
-                st.error("❌ Não foi possível conectar com a Caixa agora. Tente novamente mais tarde.")
+            except:
+                st.error("❌ Não foi possível conectar com a Caixa agora. Use o upload manual.")
 
 # ========================= CARREGAMENTO =========================
 if st.session_state.df is None:
     st.subheader(f"📤 Upload Manual da {config['nome']}")
     arquivo = st.file_uploader("Envie o CSV (apenas números, sem cabeçalho)", type=["csv"])
     if arquivo is None:
-        st.warning("👆 Use o botão acima para atualizar automaticamente ou envie o CSV manualmente")
+        st.warning("👆 Use o botão acima ou envie o CSV manualmente")
         st.stop()
     df = pd.read_csv(arquivo, header=None, dtype=str).iloc[:, :config["sorteadas"]]
     df = df.apply(pd.to_numeric, errors='coerce').dropna().astype(int)
@@ -109,8 +111,12 @@ def aplicar_aprendizado(loteria: str, fase: str) -> List[int]:
 
 # ========================= TABS =========================
 tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
-    "🔥 Fechamento Inteligente", "🎟️ Gerar Jogos com Filtros", "📊 Estatísticas com IA",
-    "📈 Simulador Histórico", "📉 Backtesting Automático", "🤝 Bolão Optimizer",
+    "🔥 Fechamento Inteligente",
+    "🎟️ Gerar Jogos com Filtros",
+    "📊 Estatísticas com IA",
+    "📈 Simulador Histórico",
+    "📉 Backtesting Automático",
+    "🤝 Bolão Optimizer",
     "👤 Meu Perfil & Aprendizado"
 ])
 
@@ -122,7 +128,8 @@ with tab1:
         pool_base = aplicar_aprendizado(config['nome'], fase)
         for i in range(3):
             pool = pool_base.copy()
-            if i > 0: random.shuffle(pool)
+            if i > 0:
+                random.shuffle(pool)
             jogo = sorted(random.sample(pool, config["sorteadas"]))
             jogos.append(jogo)
         df_jogos = pd.DataFrame(jogos, columns=[f"D{i+1}" for i in range(config["sorteadas"])])
