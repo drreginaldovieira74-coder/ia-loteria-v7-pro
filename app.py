@@ -31,7 +31,7 @@ loteria_options = {
 loteria_selecionada = st.selectbox("🎯 Escolha a loteria", options=list(loteria_options.keys()), index=0)
 config = loteria_options[loteria_selecionada]
 
-# ========================= ESTRATÉGIA (visível no topo) =========================
+# ========================= ESTRATÉGIA =========================
 estrategia = st.selectbox("Modo de Estratégia IA", ["CONSERVADOR", "BALANCEADO", "AGRESSIVO", "ULTRA FOCUS"], index=3)
 
 # ========================= UPLOAD =========================
