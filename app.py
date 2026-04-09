@@ -31,6 +31,9 @@ loteria_options = {
 loteria_selecionada = st.selectbox("🎯 Escolha a loteria", options=list(loteria_options.keys()), index=0)
 config = loteria_options[loteria_selecionada]
 
+# ========================= ESTRATÉGIA (visível no topo) =========================
+estrategia = st.selectbox("Modo de Estratégia IA", ["CONSERVADOR", "BALANCEADO", "AGRESSIVO", "ULTRA FOCUS"], index=3)
+
 # ========================= UPLOAD =========================
 st.subheader(f"📤 Upload do Histórico da {config['nome']}")
 arquivo = st.file_uploader("Envie o CSV (apenas números, sem cabeçalho)", type=["csv"])
