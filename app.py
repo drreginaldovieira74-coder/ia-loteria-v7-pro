@@ -64,7 +64,7 @@ with tab1:
         csv = df_jogos.to_csv(index=False).encode('utf-8')
         st.download_button("📥 Baixar jogos (CSV)", csv, f"jogos_{config['nome']}.csv", "text/csv")
 
-# ====================== TAB 7 - FECHAMENTOS INTELIGENTES (VERSÃO FINAL) ======================
+# ====================== TAB 7 - FECHAMENTOS INTELIGENTES (CORRIGIDO) ======================
 with tab7:
     st.subheader("🔒 Fechamentos Inteligentes")
     st.write("3 sugestões geradas pela IA usando ciclo + faltantes + aprendizado pessoal")
@@ -76,20 +76,22 @@ with tab7:
             
             sugestoes = []
             for i in range(3):
-                # === GERAÇÃO GARANTIDA SEM REPETIÇÃO ===
+                # === GERAÇÃO GARANTIDA PARA LOTOMANIA ===
                 candidates = list(range(1, config["total"] + 1))
-                weights = [pesos.get(n, 1.0) + (4.0 if n in faltantes else 0) for n in candidates]
+                weights = [pesos.get(n, 1.0) + (5.0 if n in faltantes else 0) for n in candidates]
                 
-                # Amostragem ponderada sem repetição
+                # Amostragem ponderada sem repetição (método seguro)
                 jogo = []
+                temp_candidates = candidates[:]
+                temp_weights = weights[:]
                 for _ in range(config["sorteadas"]):
-                    if not candidates:
+                    if not temp_candidates:
                         break
-                    chosen = random.choices(candidates, weights=weights, k=1)[0]
+                    chosen = random.choices(temp_candidates, weights=temp_weights, k=1)[0]
                     jogo.append(chosen)
-                    idx = candidates.index(chosen)
-                    del candidates[idx]
-                    del weights[idx]
+                    idx = temp_candidates.index(chosen)
+                    del temp_candidates[idx]
+                    del temp_weights[idx]
                 
                 jogo.sort()
                 jogo_str = ", ".join(f"{n:02d}" for n in jogo)
