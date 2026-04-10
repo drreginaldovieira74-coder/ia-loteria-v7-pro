@@ -6,7 +6,7 @@ from collections import defaultdict
 
 st.set_page_config(page_title="LOTOELITE PRO", layout="wide")
 st.title("🪄 LOTOELITE PRO")
-st.markdown("**Ciclo 4-6 sorteios | Memória 9-11 | IA Ultra Focus • v48.7**")
+st.markdown("**Ciclo 4-6 sorteios | Memória 9-11 | IA Ultra Focus • v48.8**")
 
 # ========================= LOTERIAS =========================
 loteria_options = {
@@ -44,18 +44,17 @@ def analisar_ciclo_completo(df, config):
 
     for idx, row in df.iterrows():
         ciclo_atual.append(idx)
-        dezenas_vistas.update(row.values)
+        dezenas_vistas.update([int(x) for x in row.values]) # Converte pra int
         if len(dezenas_vistas) == total:
             ciclos.append({
                 "inicio": ciclo_atual[0], "fim": ciclo_atual[-1],
                 "duracao": len(ciclo_atual),
-                "dezenas_final": set(df.iloc[ciclo_atual[-1], :config["sorteadas"]].values)
+                "dezenas_final": set([int(x) for x in df.iloc[ciclo_atual[-1], :config["sorteadas"]].values])
             })
             ciclo_atual = []
             dezenas_vistas = set()
 
     faltantes = sorted(set(range(1, total+1)) - dezenas_vistas)
-    # Força float e trava entre 0.0 e 1.0
     progresso_raw = len(dezenas_vistas) / total if total > 0 else 0.0
     progresso = float(max(0.0, min(1.0, progresso_raw)))
     sorteios_ciclo = len(ciclo_atual)
@@ -73,11 +72,11 @@ def analisar_ciclo_completo(df, config):
     if len(ciclos) >= 1:
         memoria = list(ciclos[-1]["dezenas_final"] & dezenas_vistas)
 
-    quentes = np.argsort(np.bincount(df.tail(20).values.flatten(), minlength=total+1)[1:])[-15:][::-1] + 1
+    quentes = [int(x) for x in np.argsort(np.bincount(df.tail(20).values.flatten(), minlength=total+1)[1:])[-15:][::-1] + 1]
 
     return {
-        "fase": fase, "faltantes": faltantes, "progresso": progresso,
-        "sorteios_ciclo": sorteios_ciclo, "boost": boost, "memoria": memoria,
+        "fase": fase, "faltantes": [int(x) for x in faltantes], "progresso": progresso,
+        "sorteios_ciclo": sorteios_ciclo, "boost": boost, "memoria": [int(x) for x in memoria],
         "ciclos_hist": ciclos, "previsao_fecha": max(0, 6 - sorteios_ciclo),
         "quentes": quentes
     }
@@ -126,7 +125,7 @@ def gerar_jogo_ciclo(config, analise, modo="AVANÇADO"):
         if candidato not in jogo: 
             jogo.append(candidato)
 
-    return sorted(jogo[:total_jogo])
+    return sorted([int(x) for x in jogo[:total_jogo]]) # Converte tudo pra int
 
 def fechamento_inteligente_3jogos(config, analise):
     faltantes, memoria, quentes = analise["faltantes"], analise["memoria"], analise["quentes"]
@@ -188,7 +187,6 @@ with tab2:
     st.subheader("📊 Estatísticas do Ciclo")
     st.metric("Fase Atual", analise["fase"])
     st.metric("Progresso do Ciclo", f"{analise['progresso']:.0%}")
-    # Corrigido: garante float entre 0.0 e 1.0
     valor_progresso = float(analise["progresso"])
     st.progress(valor_progresso)
 
@@ -212,7 +210,7 @@ with tab3:
         for i in range(20, len(df)):
             an = analisar_ciclo_completo(df.iloc[:i], config)
             jogo = gerar_jogo_ciclo(config, an, "AVANÇADO")
-            acertos = len(set(jogo) & set(df.iloc[i, :config["sorteadas"]].values))
+            acertos = len(set(jogo) & set([int(x) for x in df.iloc[i, :config["sorteadas"]].values]))
             fases_res[an["fase"]].append(acertos)
         for fase, acertos in fases_res.items():
             st.metric(f"Média na fase {fase}", f"{np.mean(acertos):.2f} acertos", f"{len(acertos)} concursos")
@@ -225,8 +223,8 @@ with tab4:
         for i in range(25, len(df)):
             an = analisar_ciclo_completo(df.iloc[:i], config)
             jogo = gerar_jogo_ciclo(config, an, "SUPER_FOCUS")
-            acertos = len(set(jogo) & set(df.iloc[i, :config["sorteadas"]].values))
-            acertos_mem = len(set(jogo) & set(an["memoria"]) & set(df.iloc[i, :config["sorteadas"]].values))
+            acertos = len(set(jogo) & set([int(x) for x in df.iloc[i, :config["sorteadas"]].values]))
+            acertos_mem = len(set(jogo) & set(an["memoria"]) & set([int(x) for x in df.iloc[i, :config["sorteadas"]].values]))
             res.append({"fase": an["fase"], "acertos": acertos, "acertos_memoria": acertos_mem})
         df_bt = pd.DataFrame(res)
         st.dataframe(df_bt.groupby('fase')['acertos'].agg(['mean', 'count']))
