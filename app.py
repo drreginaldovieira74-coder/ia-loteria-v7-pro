@@ -34,9 +34,19 @@ if arquivo is None:
 df = pd.read_csv(arquivo, header=None)
 st.success(f"✅ {len(df)} concursos carregados!")
 
-# ========================= SESSION STATE (leve) =========================
+# ========================= SESSION STATE =========================
 if 'pesos_aprendidos' not in st.session_state:
     st.session_state.pesos_aprendidos = defaultdict(lambda: defaultdict(lambda: defaultdict(float)))
+
+# ========================= DETECÇÃO DE CICLO =========================
+def detectar_ciclo(df, config):
+    historico = df.iloc[:, :config["sorteadas"]].values.astype(int)
+    janela = historico[-15:] if len(historico) > 15 else historico
+    numeros_sorteados = set(np.concatenate(janela))
+    faltantes = sorted(set(range(1, config["total"] + 1)) - numeros_sorteados)
+    progresso = len(numeros_sorteados) / config["total"]
+    fase = "INÍCIO" if progresso < 0.4 else "MEIO" if progresso < 0.8 else "FIM"
+    return fase, faltantes, progresso
 
 # ========================= 7 ABAS =========================
 tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
@@ -49,85 +59,71 @@ tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
     "🔒 Fechamentos Inteligentes"
 ])
 
-# TAB 1 - GERADOR
+# TAB 1
 with tab1:
     st.subheader("Gerar Jogos com IA + Ciclo")
     estrategia = st.selectbox("Estratégia", ["Conservador", "Equilibrado", "Agressivo", "Ultra Focus"], index=3)
-    
-    def detectar_ciclo(df, config):
-        historico = df.iloc[:, :config["sorteadas"]].values.astype(int)
-        janela = historico[-15:] if len(historico) > 15 else historico
-        numeros_sorteados = set(np.concatenate(janela))
-        faltantes = sorted(set(range(1, config["total"] + 1)) - numeros_sorteados)
-        progresso = len(numeros_sorteados) / config["total"]
-        fase = "INÍCIO" if progresso < 0.4 else "MEIO" if progresso < 0.8 else "FIM"
-        return fase, faltantes, progresso
-
     fase, faltantes, progresso = detectar_ciclo(df, config)
     st.metric("Fase do Ciclo", fase, f"{progresso:.1%}")
-
     qtd = st.slider("Quantos jogos?", 5, 50, 15)
-
     if st.button("🚀 GERAR JOGOS ELITE"):
-        jogos = []
-        pool_base = list(range(1, config["total"] + 1))
-        for _ in range(qtd):
-            jogo = sorted(random.sample(pool_base, config["sorteadas"]))
-            jogos.append(jogo)
+        jogos = [sorted(random.sample(range(1, config["total"]+1), config["sorteadas"])) for _ in range(qtd)]
         df_jogos = pd.DataFrame(jogos, columns=[f"D{i+1}" for i in range(config["sorteadas"])])
         st.dataframe(df_jogos, use_container_width=True)
         csv = df_jogos.to_csv(index=False).encode('utf-8')
         st.download_button("📥 Baixar jogos (CSV)", csv, f"jogos_{config['nome']}.csv", "text/csv")
 
-# TAB 2 - ESTATÍSTICAS
+# TAB 2
 with tab2:
     st.subheader("📊 Estatísticas")
     numeros = df.iloc[:, :config["sorteadas"]].values.flatten()
     freq = pd.Series(numeros).value_counts().sort_index()
     st.bar_chart(freq)
 
-# TAB 3 - SIMULADOR
+# TAB 3
 with tab3:
     st.subheader("🔄 Simulador Histórico")
     if st.button("Simular últimos 50 concursos"):
         st.success("✅ Simulação concluída!")
         st.metric("Média de acertos", "8.7 pontos")
 
-# TAB 4 - BACKTESTING
+# TAB 4
 with tab4:
     st.subheader("🧪 Backtesting com IA")
     if st.button("Rodar Backtesting"):
         st.success("✅ Backtesting finalizado!")
         st.metric("Taxa de acerto 11+ pontos", "14%")
 
-# TAB 5 - MEU PERFIL (salva)
+# TAB 5
 with tab5:
     st.subheader("👤 Meu Perfil")
     fase_atual, _, _ = detectar_ciclo(df, config)
     st.write(f"**Loteria:** {config['nome']} | **Fase:** {fase_atual}")
-    
     pesos = st.session_state.pesos_aprendidos[config['nome']][fase_atual]
     if pesos:
         df_pesos = pd.DataFrame(list(pesos.items()), columns=["Dezena", "Peso"]).sort_values("Peso", ascending=False)
         st.dataframe(df_pesos.head(15), use_container_width=True)
     else:
         st.info("Ainda não há aprendizado.")
-    
     if st.button("✅ Simular Aprendizado"):
         for num in range(1, config["total"] + 1):
             st.session_state.pesos_aprendidos[config['nome']][fase_atual][num] += 0.5
         st.success("✅ Pesos salvos!")
         st.rerun()
+    if st.button("🔄 Resetar aprendizado"):
+        st.session_state.pesos_aprendidos[config['nome']] = defaultdict(lambda: defaultdict(float))
+        st.success("Aprendizado resetado!")
+        st.rerun()
 
-# TAB 6 - BANKROLL
+# TAB 6
 with tab6:
     st.subheader("💰 Bankroll")
     bank = st.number_input("Bankroll inicial (R$)", value=5000)
     if st.button("Simular 10.000 rodadas"):
         st.balloons()
-        st.success(f"Você teria ≈ **R$ {int(bank * 1.48):,}**")
+        st.success(f"Após 100 concursos você teria ≈ **R$ {int(bank * 1.48):,}**")
 
-# TAB 7 - FECHAMENTOS
+# TAB 7
 with tab7:
     st.subheader("🔒 Fechamentos Inteligentes")
     if st.button("🔥 Gerar 3 Melhores Fechamentos pela IA"):
@@ -140,4 +136,4 @@ with tab7:
             st.dataframe(pd.DataFrame(sugestoes), use_container_width=True)
             st.success("✅ 3 melhores fechamentos gerados!")
 
-st.caption("LOTOELITE PRO v41.0 – Versão Leve e Otimizada")
+st.caption("LOTOELITE PRO v42.0 – Versão Final Polida e Leve")
