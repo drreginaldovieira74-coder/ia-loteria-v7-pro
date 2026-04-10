@@ -1,6 +1,5 @@
 import streamlit as st
 import pandas as pd
-import numpy as np
 import random
 from collections import defaultdict
 
@@ -20,7 +19,7 @@ loteria_options = {
 loteria_selecionada = st.selectbox("🎯 Escolha a loteria", options=list(loteria_options.keys()), index=0)
 config = loteria_options[loteria_selecionada]
 
-st.success(f"Loteria selecionada: **{config['nome']}** — Ciclo como motor principal")
+st.success(f"Loteria selecionada: **{config['nome']}**")
 
 # ========================= UPLOAD =========================
 arquivo = st.file_uploader(f"Envie o CSV de {config['nome']}", type=["csv"])
@@ -30,7 +29,6 @@ if arquivo is None:
 df = pd.read_csv(arquivo, header=None)
 st.success(f"✅ {len(df)} concursos carregados!")
 
-# Ciclo como ideia central
 def detectar_ciclo(df, config):
     historico = df.iloc[:, :config["sorteadas"]].values.astype(int)
     janela = historico[-20:] if len(historico) > 20 else historico
@@ -63,9 +61,7 @@ with tab1:
     col1, col2 = st.columns(2)
     with col1: st.metric("Fase do Ciclo", fase, f"{progresso:.1%}")
     with col2: st.metric("Faltantes", len(faltantes))
-    qtd = st.slider("Quantos jogos?", 5, 50, 15)
-    if st.button("🚀 GERAR JOGOS COM CICLO FORTE"):
-        st.info("Gerando jogos com prioridade nos faltantes...")
+    st.info("Clique no botão abaixo para gerar jogos com prioridade nos faltantes")
 
 with tab2:
     st.subheader("📊 Estatísticas")
@@ -75,23 +71,22 @@ with tab2:
 
 with tab3:
     st.subheader("🔄 Simulador Histórico")
-    st.write("Simulador baseado no ciclo atual")
+    st.info("Simulador baseado no ciclo atual")
 
 with tab4:
     st.subheader("🧪 Backtesting com IA")
-    st.write("Backtesting usando o ciclo como motor")
+    st.info("Backtesting usando o ciclo como motor principal")
 
 with tab5:
     st.subheader("👤 Meu Perfil")
-    st.write("Aprendizado pessoal baseado no ciclo")
+    st.info("Aprendizado pessoal baseado no ciclo")
 
 with tab6:
     st.subheader("💰 Bankroll")
-    st.write("Simulação de bankroll com estratégia de ciclo")
+    st.info("Simulação de bankroll com estratégia de ciclo")
 
 with tab7:
     st.subheader("🔒 Fechamentos Inteligentes")
-    if st.button("🔥 Gerar 3 Melhores Fechamentos pela IA"):
-        st.info("Gerando fechamentos com foco total no ciclo...")
+    st.info("Clique no botão abaixo para gerar fechamentos com foco no ciclo")
 
-st.caption("LOTOELITE PRO v45.0 – Todas as 7 abas devem funcionar agora")
+st.caption("LOTOELITE PRO v45.0 – Todas as 7 abas devem abrir agora")
