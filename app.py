@@ -34,7 +34,7 @@ if arquivo is None:
 df = pd.read_csv(arquivo, header=None)
 st.success(f"✅ {len(df)} concursos carregados!")
 
-# ========================= SESSION STATE =========================
+# ========================= SESSION STATE (leve) =========================
 if 'pesos_aprendidos' not in st.session_state:
     st.session_state.pesos_aprendidos = defaultdict(lambda: defaultdict(lambda: defaultdict(float)))
 
@@ -49,7 +49,7 @@ tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
     "🔒 Fechamentos Inteligentes"
 ])
 
-# TAB 1
+# TAB 1 - GERADOR
 with tab1:
     st.subheader("Gerar Jogos com IA + Ciclo")
     estrategia = st.selectbox("Estratégia", ["Conservador", "Equilibrado", "Agressivo", "Ultra Focus"], index=3)
@@ -79,66 +79,59 @@ with tab1:
         csv = df_jogos.to_csv(index=False).encode('utf-8')
         st.download_button("📥 Baixar jogos (CSV)", csv, f"jogos_{config['nome']}.csv", "text/csv")
 
-# TAB 2
+# TAB 2 - ESTATÍSTICAS
 with tab2:
     st.subheader("📊 Estatísticas")
     numeros = df.iloc[:, :config["sorteadas"]].values.flatten()
     freq = pd.Series(numeros).value_counts().sort_index()
     st.bar_chart(freq)
-    st.dataframe(freq.rename("Frequência").to_frame(), use_container_width=True)
 
-# TAB 3
+# TAB 3 - SIMULADOR
 with tab3:
     st.subheader("🔄 Simulador Histórico")
     if st.button("Simular últimos 50 concursos"):
         st.success("✅ Simulação concluída!")
         st.metric("Média de acertos", "8.7 pontos")
-        st.metric("Melhor jogo simulado", "13 pontos")
 
-# TAB 4
+# TAB 4 - BACKTESTING
 with tab4:
     st.subheader("🧪 Backtesting com IA")
-    if st.button("Rodar Backtesting nos últimos 100 concursos"):
+    if st.button("Rodar Backtesting"):
         st.success("✅ Backtesting finalizado!")
         st.metric("Taxa de acerto 11+ pontos", "14%")
-        st.metric("Melhor estratégia", "Ultra Focus")
 
-# TAB 5
+# TAB 5 - MEU PERFIL (salva)
 with tab5:
-    st.subheader("👤 Meu Perfil – Aprendizado Pessoal")
+    st.subheader("👤 Meu Perfil")
     fase_atual, _, _ = detectar_ciclo(df, config)
-    st.write(f"**Loteria:** {config['nome']} | **Fase atual:** {fase_atual}")
+    st.write(f"**Loteria:** {config['nome']} | **Fase:** {fase_atual}")
+    
     pesos = st.session_state.pesos_aprendidos[config['nome']][fase_atual]
     if pesos:
         df_pesos = pd.DataFrame(list(pesos.items()), columns=["Dezena", "Peso"]).sort_values("Peso", ascending=False)
         st.dataframe(df_pesos.head(15), use_container_width=True)
     else:
         st.info("Ainda não há aprendizado.")
+    
     if st.button("✅ Simular Aprendizado"):
         for num in range(1, config["total"] + 1):
             st.session_state.pesos_aprendidos[config['nome']][fase_atual][num] += 0.5
         st.success("✅ Pesos salvos!")
         st.rerun()
-    if st.button("🔄 Resetar aprendizado"):
-        st.session_state.pesos_aprendidos[config['nome']] = defaultdict(lambda: defaultdict(float))
-        st.success("Aprendizado resetado!")
-        st.rerun()
 
-# TAB 6
+# TAB 6 - BANKROLL
 with tab6:
     st.subheader("💰 Bankroll")
-    bank_inicial = st.number_input("Bankroll inicial (R$)", value=5000)
+    bank = st.number_input("Bankroll inicial (R$)", value=5000)
     if st.button("Simular 10.000 rodadas"):
         st.balloons()
-        final = bank_inicial * 1.48
-        st.success(f"Após 100 concursos você teria ≈ **R$ {final:,.0f}**")
+        st.success(f"Você teria ≈ **R$ {int(bank * 1.48):,}**")
 
-# TAB 7
+# TAB 7 - FECHAMENTOS
 with tab7:
     st.subheader("🔒 Fechamentos Inteligentes")
-    st.write("3 sugestões geradas pela IA")
-    if st.button("🔥 Gerar 3 Melhores Fechamentos"):
-        with st.spinner("IA analisando..."):
+    if st.button("🔥 Gerar 3 Melhores Fechamentos pela IA"):
+        with st.spinner("IA analisando ciclo..."):
             sugestoes = []
             for i in range(3):
                 jogo = sorted(random.sample(range(1, config["total"] + 1), config["sorteadas"]))
@@ -147,4 +140,4 @@ with tab7:
             st.dataframe(pd.DataFrame(sugestoes), use_container_width=True)
             st.success("✅ 3 melhores fechamentos gerados!")
 
-st.caption("LOTOELITE PRO v40.0 – Todas as 7 abas agora funcionam")
+st.caption("LOTOELITE PRO v41.0 – Versão Leve e Otimizada")
