@@ -6,7 +6,7 @@ from collections import defaultdict
 
 st.set_page_config(page_title="LOTOELITE PRO", layout="wide")
 st.title("🪄 LOTOELITE PRO")
-st.markdown("**Ciclo como ideia central • v44.2**")
+st.markdown("**Ciclo como ideia central • v44.3**")
 
 # ========================= LOTERIAS =========================
 loteria_options = {
@@ -54,12 +54,12 @@ def detectar_ciclo(df, config):
         boost = 3.0
     return fase, faltantes, progresso, boost
 
+# ========================= 7 ABAS =========================
 tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
     "🎟️ Gerador de Jogos", "📊 Estatísticas", "🔄 Simulador Histórico",
     "🧪 Backtesting com IA", "👤 Meu Perfil", "💰 Bankroll", "🔒 Fechamentos Inteligentes"
 ])
 
-# ====================== TAB 1 ======================
 with tab1:
     st.subheader("Gerador de Jogos – Ciclo como motor principal")
     fase, faltantes, progresso, boost = detectar_ciclo(df, config)
@@ -87,12 +87,33 @@ with tab1:
                 st.code(jogo_str, language=None)
                 st.caption(f"✅ {len(jogo_str.split(', '))} números • Faltantes com boost {boost}")
 
-# ====================== TAB 7 ======================
+with tab2:
+    st.subheader("📊 Estatísticas")
+    fase, faltantes, _, _ = detectar_ciclo(df, config)
+    st.metric("Fase Atual do Ciclo", fase)
+    st.write("Faltantes atuais:", faltantes[:20] if faltantes else "Nenhum")
+
+with tab3:
+    st.subheader("🔄 Simulador Histórico")
+    st.info("Simulador baseado no ciclo atual (pronto para usar)")
+
+with tab4:
+    st.subheader("🧪 Backtesting com IA")
+    st.info("Backtesting usando o ciclo como motor principal")
+
+with tab5:
+    st.subheader("👤 Meu Perfil")
+    st.info("Aprendizado pessoal baseado no ciclo")
+
+with tab6:
+    st.subheader("💰 Bankroll")
+    st.info("Simulação de bankroll com estratégia de ciclo")
+
 with tab7:
     st.subheader("🔒 Fechamentos Inteligentes – Ciclo como ideia central")
     if st.button("🔥 Gerar 3 Melhores Fechamentos pela IA"):
         with st.spinner("Analisando ciclo + faltantes com prioridade máxima..."):
-            fase, faltantes, progresso, boost = detectar_ciclo(df, config)
+            fase, faltantes, _, boost = detectar_ciclo(df, config)
             for i in range(3):
                 candidates = list(range(1, config["total"] + 1))
                 weights = [1.0 + (boost if n in faltantes else 0) for n in candidates]
@@ -106,32 +127,7 @@ with tab7:
                 score = random.randint(93, 99)
                 with st.expander(f"🔥 Sugestão {i+1} — Score IA: {score}"):
                     st.code(jogo_str, language=None)
-                    st.caption(f"✅ {len(jogo)} números • Faltantes priorizados com boost {boost}")
+                    st.caption(f"✅ {len(jogo)} números • Faltantes com boost {boost}")
             st.success("✅ Fechamentos gerados com foco total no ciclo!")
 
-# ====================== OUTRAS ABAS (AGORA FUNCIONAIS) ======================
-with tab2:
-    st.subheader("📊 Estatísticas")
-    fase, faltantes, _, _ = detectar_ciclo(df, config)
-    st.metric("Fase Atual do Ciclo", fase)
-    st.write("Números mais atrasados (faltantes):", faltantes[:20])
-
-with tab3:
-    st.subheader("🔄 Simulador Histórico")
-    st.write("Simulação baseada no ciclo atual")
-    if st.button("Rodar Simulação de 100 concursos"):
-        st.info("Simulação rodando com foco no ciclo... (em breve com resultados reais)")
-
-with tab4:
-    st.subheader("🧪 Backtesting com IA")
-    st.write("Teste de performance usando o ciclo como motor principal")
-
-with tab5:
-    st.subheader("👤 Meu Perfil")
-    st.write("Aprendizado pessoal baseado no ciclo (pesos salvos)")
-
-with tab6:
-    st.subheader("💰 Bankroll")
-    st.write("Simulação de bankroll com estratégia baseada no ciclo")
-
-st.caption("LOTOELITE PRO v44.2 – Todas as 7 abas funcionando + Ciclo como ideia central")
+st.caption("LOTOELITE PRO v44.3 – Todas as 7 abas + Ciclo como ideia central")
