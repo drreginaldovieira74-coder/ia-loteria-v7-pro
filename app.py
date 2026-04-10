@@ -6,7 +6,7 @@ from collections import defaultdict
 
 st.set_page_config(page_title="LOTOELITE PRO", layout="wide")
 st.title("🪄 LOTOELITE PRO")
-st.markdown("**Ciclo como ideia central • v44.4 (Varredura completa)**")
+st.markdown("**Ciclo como ideia central • v44.5 (Varredura Final)**")
 
 # ========================= LOTERIAS =========================
 loteria_options = {
@@ -55,10 +55,17 @@ def detectar_ciclo(df, config):
     return fase, faltantes, progresso, boost
 
 # ========================= 7 ABAS =========================
-tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
-    "🎟️ Gerador de Jogos", "📊 Estatísticas", "🔄 Simulador Histórico",
-    "🧪 Backtesting com IA", "👤 Meu Perfil", "💰 Bankroll", "🔒 Fechamentos Inteligentes"
+tabs = st.tabs([
+    "🎟️ Gerador de Jogos",
+    "📊 Estatísticas",
+    "🔄 Simulador Histórico",
+    "🧪 Backtesting com IA",
+    "👤 Meu Perfil",
+    "💰 Bankroll",
+    "🔒 Fechamentos Inteligentes"
 ])
+
+tab1, tab2, tab3, tab4, tab5, tab6, tab7 = tabs
 
 with tab1:
     st.subheader("Gerador de Jogos – Ciclo como motor principal")
@@ -69,6 +76,7 @@ with tab1:
     
     qtd = st.slider("Quantos jogos?", 5, 50, 15)
     if st.button("🚀 GERAR JOGOS COM CICLO FORTE"):
+        # (código do gerador mantido igual)
         jogos = []
         for _ in range(qtd):
             candidates = list(range(1, config["total"] + 1))
@@ -85,34 +93,34 @@ with tab1:
         for i, jogo_str in enumerate(jogos):
             with st.expander(f"Jogo {i+1}"):
                 st.code(jogo_str, language=None)
-                st.caption(f"✅ {len(jogo_str.split(', '))} números • Faltantes com boost {boost}")
+                st.caption(f"✅ {len(jogo_str.split(', '))} números • Boost nos faltantes: {boost}")
 
 with tab2:
     st.subheader("📊 Estatísticas")
     fase, faltantes, _, _ = detectar_ciclo(df, config)
     st.metric("Fase Atual do Ciclo", fase)
-    st.write("Faltantes atuais:", faltantes[:20] if faltantes else "Nenhum")
+    st.write("Faltantes:", faltantes[:20] if faltantes else "Nenhum")
 
 with tab3:
     st.subheader("🔄 Simulador Histórico")
-    st.write("Simulador baseado no ciclo atual")
+    st.info("Simulador baseado no ciclo atual")
 
 with tab4:
     st.subheader("🧪 Backtesting com IA")
-    st.write("Backtesting usando o ciclo como motor principal")
+    st.info("Backtesting usando o ciclo como motor principal")
 
 with tab5:
     st.subheader("👤 Meu Perfil")
-    st.write("Aprendizado pessoal baseado no ciclo")
+    st.info("Aprendizado pessoal baseado no ciclo")
 
 with tab6:
     st.subheader("💰 Bankroll")
-    st.write("Simulação de bankroll com estratégia de ciclo")
+    st.info("Simulação de bankroll com estratégia de ciclo")
 
 with tab7:
     st.subheader("🔒 Fechamentos Inteligentes – Ciclo como ideia central")
     if st.button("🔥 Gerar 3 Melhores Fechamentos pela IA"):
-        with st.spinner("Analisando ciclo + faltantes com prioridade máxima..."):
+        with st.spinner("Analisando ciclo + faltantes..."):
             fase, faltantes, _, boost = detectar_ciclo(df, config)
             for i in range(3):
                 candidates = list(range(1, config["total"] + 1))
@@ -127,7 +135,7 @@ with tab7:
                 score = random.randint(93, 99)
                 with st.expander(f"🔥 Sugestão {i+1} — Score IA: {score}"):
                     st.code(jogo_str, language=None)
-                    st.caption(f"✅ {len(jogo)} números • Faltantes com boost {boost}")
+                    st.caption(f"✅ {len(jogo)} números • Boost nos faltantes: {boost}")
             st.success("✅ Fechamentos gerados com foco total no ciclo!")
 
-st.caption("LOTOELITE PRO v44.4 – Varredura completa finalizada")
+st.caption("LOTOELITE PRO v44.5 – Varredura completa finalizada")
