@@ -53,7 +53,7 @@ tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
     "🧪 Backtesting com IA", "👤 Meu Perfil", "💰 Bankroll", "🔒 Fechamentos Inteligentes"
 ])
 
-# (As abas 1 a 6 permanecem iguais – só corrigi a TAB 7)
+# (As abas 1 a 6 permanecem iguais)
 
 with tab1:
     st.subheader("Gerar Jogos com IA + Ciclo")
@@ -68,7 +68,7 @@ with tab1:
         csv = df_jogos.to_csv(index=False).encode('utf-8')
         st.download_button("📥 Baixar jogos (CSV)", csv, f"jogos_{config['nome']}.csv", "text/csv")
 
-# ... (TAB 2 a TAB 6 iguais à versão anterior)
+# ... (TAB 2 a TAB 6 iguais)
 
 with tab7:
     st.subheader("🔒 Fechamentos Inteligentes")
@@ -79,8 +79,10 @@ with tab7:
             for i in range(3):
                 jogo = sorted(random.sample(range(1, config["total"] + 1), config["sorteadas"]))
                 jogo_str = ", ".join(f"{n:02d}" for n in jogo)
+                
                 st.write(f"**Sugestão {i+1}** (Score IA: {random.randint(88,97)})")
-                st.code(jogo_str, language="text")   # ← Aqui mostra TODOS os números completos
+                st.code(jogo_str, language="text")   # ← Exibição robusta para 50 números
+                st.write(f"**Total de números:** {len(jogo)}")  # Confirmação
                 st.write("---")
 
-st.caption("LOTOELITE PRO v42.2 – Fechamentos corrigidos (Lotomania agora mostra os 50 números)")
+st.caption("LOTOELITE PRO v42.3 – Fechamentos corrigidos (Lotomania agora mostra os 50 números completos)")
