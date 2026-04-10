@@ -72,9 +72,9 @@ with tab7:
     if st.button("🔥 Gerar 3 Melhores Fechamentos pela IA"):
         with st.spinner("IA analisando ciclo..."):
             for i in range(3):
-                # CORREÇÃO ESPECIAL PARA LOTOMANIA
+                # Correção definitiva para Lotomania
                 jogo = random.sample(range(1, config["total"] + 1), config["sorteadas"])
-                random.shuffle(jogo)   # ← Garante que NÃO fique em sequência
+                random.shuffle(jogo)                    # Garante aleatoriedade total
                 jogo_str = ", ".join(f"{n:02d}" for n in jogo)
                 
                 st.write(f"**Sugestão {i+1}** (Score IA: {random.randint(88,97)})")
@@ -82,4 +82,4 @@ with tab7:
                 st.caption(f"✅ Total de números: **{len(jogo)}**")
                 st.write("---")
 
-st.caption("LOTOELITE PRO v42.4 – Fechamentos corrigidos (Lotomania agora com números aleatórios)")
+st.caption("LOTOELITE PRO v42.5 – Fechamentos corrigidos (Lotomania agora com números aleatórios)")
