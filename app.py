@@ -57,13 +57,16 @@ with tab1:
     fase, faltantes, progresso = detectar_ciclo(df, config)
     st.metric("Fase do Ciclo", fase, f"{progresso:.1%}")
     qtd = st.slider("Quantos jogos?", 5, 50, 15)
+    
     if st.button("🚀 GERAR JOGOS ELITE"):
         jogos = []
         for _ in range(qtd):
             jogo = random.sample(range(1, config["total"] + 1), config["sorteadas"])
-            random.shuffle(jogo)          # <--- REMOVIDO O SORT para não ficar sequencial
-            jogos.append(jogo)
-        df_jogos = pd.DataFrame(jogos, columns=[f"D{i+1}" for i in range(config["sorteadas"])])
+            random.shuffle(jogo)                    # ← embaralhado
+            jogo_str = ", ".join(f"{n:02d}" for n in jogo)
+            jogos.append(jogo_str)
+        
+        df_jogos = pd.DataFrame({"Jogo": jogos})
         st.dataframe(df_jogos, use_container_width=True)
         csv = df_jogos.to_csv(index=False).encode('utf-8')
         st.download_button("📥 Baixar jogos (CSV)", csv, f"jogos_{config['nome']}.csv", "text/csv")
@@ -76,16 +79,16 @@ with tab7:
         with st.spinner("IA analisando ciclo, faltantes e pesos..."):
             fase, faltantes, _ = detectar_ciclo(df, config)
             
-            sugestoes = []
             for i in range(3):
                 jogo = random.sample(range(1, config["total"] + 1), config["sorteadas"])
-                random.shuffle(jogo)          # <--- REMOVIDO O SORT
+                random.shuffle(jogo)
                 jogo_str = ", ".join(f"{n:02d}" for n in jogo)
                 score = random.randint(91, 98)
-                sugestoes.append({"Sugestão": i+1, "Jogo": jogo_str, "Score IA": score})
+                
+                with st.expander(f"🔥 Sugestão {i+1} — Score IA: {score}"):
+                    st.code(jogo_str, language=None)
+                    st.caption(f"✅ {len(jogo)} números únicos gerados")
             
-            df_sug = pd.DataFrame(sugestoes)
-            st.dataframe(df_sug, use_container_width=True)
             st.success("✅ 3 fechamentos inteligentes gerados pela IA!")
 
-st.caption("LOTOELITE PRO v42.8 – Números agora embaralhados (Lotomania corrigida)")
+st.caption("LOTOELITE PRO v42.9 – Exibição corrigida para Lotomania (50 números completos)")
