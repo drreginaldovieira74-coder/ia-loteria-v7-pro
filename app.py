@@ -62,14 +62,14 @@ with tab1:
         jogos = []
         for _ in range(qtd):
             jogo = random.sample(range(1, config["total"] + 1), config["sorteadas"])
-            random.shuffle(jogo)                    # ← embaralhado
+            random.shuffle(jogo)
             jogo_str = ", ".join(f"{n:02d}" for n in jogo)
             jogos.append(jogo_str)
         
-        df_jogos = pd.DataFrame({"Jogo": jogos})
-        st.dataframe(df_jogos, use_container_width=True)
-        csv = df_jogos.to_csv(index=False).encode('utf-8')
-        st.download_button("📥 Baixar jogos (CSV)", csv, f"jogos_{config['nome']}.csv", "text/csv")
+        for i, jogo_str in enumerate(jogos):
+            with st.expander(f"Jogo {i+1}"):
+                st.code(jogo_str, language=None)
+                st.caption(f"✅ {len(jogo_str.split(', '))} números únicos")
 
 with tab7:
     st.subheader("🔒 Fechamentos Inteligentes")
@@ -91,4 +91,4 @@ with tab7:
             
             st.success("✅ 3 fechamentos inteligentes gerados pela IA!")
 
-st.caption("LOTOELITE PRO v42.9 – Exibição corrigida para Lotomania (50 números completos)")
+st.caption("LOTOELITE PRO v43.0 – Lotomania agora mostra os 50 números completos")
