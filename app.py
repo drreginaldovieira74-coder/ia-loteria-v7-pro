@@ -6,7 +6,7 @@ from collections import defaultdict
 
 st.set_page_config(page_title="LOTOELITE PRO", layout="wide")
 st.title("🪄 LOTOELITE PRO")
-st.markdown("**Ciclo 4-6 sorteios | Memória 9-11 | IA Ultra Focus • v48.6**")
+st.markdown("**Ciclo 4-6 sorteios | Memória 9-11 | IA Ultra Focus • v48.7**")
 
 # ========================= LOTERIAS =========================
 loteria_options = {
@@ -55,7 +55,9 @@ def analisar_ciclo_completo(df, config):
             dezenas_vistas = set()
 
     faltantes = sorted(set(range(1, total+1)) - dezenas_vistas)
-    progresso = min(1.0, len(dezenas_vistas) / total) # Trava em 1.0
+    # Força float e trava entre 0.0 e 1.0
+    progresso_raw = len(dezenas_vistas) / total if total > 0 else 0.0
+    progresso = float(max(0.0, min(1.0, progresso_raw)))
     sorteios_ciclo = len(ciclo_atual)
 
     if sorteios_ciclo == 0: 
@@ -186,7 +188,9 @@ with tab2:
     st.subheader("📊 Estatísticas do Ciclo")
     st.metric("Fase Atual", analise["fase"])
     st.metric("Progresso do Ciclo", f"{analise['progresso']:.0%}")
-    st.progress(min(1.0, max(0.0, analise["progresso"]))) # Corrigido: trava entre 0 e 1
+    # Corrigido: garante float entre 0.0 e 1.0
+    valor_progresso = float(analise["progresso"])
+    st.progress(valor_progresso)
 
     col1, col2 = st.columns(2)
     col1.write("**Faltantes pra fechar:**")
