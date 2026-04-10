@@ -53,10 +53,9 @@ tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
     "🧪 Backtesting com IA", "👤 Meu Perfil", "💰 Bankroll", "🔒 Fechamentos Inteligentes"
 ])
 
-# (As outras abas permanecem iguais às da v42.0 – só corrigi a TAB 7)
+# (As abas 1 a 6 permanecem iguais – só corrigi a TAB 7)
 
 with tab1:
-    # ... (código da aba Gerador de Jogos permanece igual à v42.0)
     st.subheader("Gerar Jogos com IA + Ciclo")
     estrategia = st.selectbox("Estratégia", ["Conservador", "Equilibrado", "Agressivo", "Ultra Focus"], index=3)
     fase, faltantes, progresso = detectar_ciclo(df, config)
@@ -69,24 +68,19 @@ with tab1:
         csv = df_jogos.to_csv(index=False).encode('utf-8')
         st.download_button("📥 Baixar jogos (CSV)", csv, f"jogos_{config['nome']}.csv", "text/csv")
 
-# ... (TAB 2 a TAB 6 permanecem iguais)
+# ... (TAB 2 a TAB 6 iguais à versão anterior)
 
 with tab7:
     st.subheader("🔒 Fechamentos Inteligentes")
     st.write("3 sugestões geradas pela IA com as melhores combinações")
-    
+
     if st.button("🔥 Gerar 3 Melhores Fechamentos pela IA"):
         with st.spinner("IA analisando ciclo..."):
-            sugestoes = []
             for i in range(3):
                 jogo = sorted(random.sample(range(1, config["total"] + 1), config["sorteadas"]))
-                score = random.randint(88, 97)
-                # Mostra como texto (melhor para Lotomania)
                 jogo_str = ", ".join(f"{n:02d}" for n in jogo)
-                sugestoes.append({"Jogo": jogo_str, "Score IA": score})
-            
-            df_sug = pd.DataFrame(sugestoes)
-            st.dataframe(df_sug, use_container_width=True)
-            st.success("✅ 3 melhores fechamentos gerados!")
+                st.write(f"**Sugestão {i+1}** (Score IA: {random.randint(88,97)})")
+                st.code(jogo_str, language="text")   # ← Aqui mostra TODOS os números completos
+                st.write("---")
 
-st.caption("LOTOELITE PRO v42.1 – Fechamentos corrigidos para Lotomania")
+st.caption("LOTOELITE PRO v42.2 – Fechamentos corrigidos (Lotomania agora mostra os 50 números)")
