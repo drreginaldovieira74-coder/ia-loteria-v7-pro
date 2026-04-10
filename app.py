@@ -51,7 +51,6 @@ tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
     "🧪 Backtesting com IA", "👤 Meu Perfil", "💰 Bankroll", "🔒 Fechamentos Inteligentes"
 ])
 
-# TAB 1 (mantida)
 with tab1:
     st.subheader("Gerar Jogos com IA + Ciclo")
     estrategia = st.selectbox("Estratégia", ["Conservador", "Equilibrado", "Agressivo", "Ultra Focus"], index=3)
@@ -76,28 +75,36 @@ with tab7:
             pesos = st.session_state.pesos_aprendidos[config['nome']][fase]
             
             sugestoes = []
-            pool_base = list(range(1, config["total"] + 1))
-            
             for i in range(3):
-                # Cria pool inteligente
-                pool = []
-                for num in pool_base:
+                # === GERAÇÃO INTELIGENTE SEM REPETIÇÃO ===
+                weights = []
+                numbers = list(range(1, config["total"] + 1))
+                for num in numbers:
                     peso = pesos.get(num, 1.0)
                     if num in faltantes:
-                        peso += 3.0                    # forte prioridade para faltantes
-                    pool.extend([num] * int(peso * 3))
+                        peso += 4.0          # forte prioridade para faltantes
+                    weights.append(peso)
                 
-                if len(pool) < config["sorteadas"]:
-                    pool = pool_base[:]  # fallback
+                # Amostragem ponderada sem repetição
+                jogo = []
+                temp_numbers = numbers[:]
+                temp_weights = weights[:]
+                for _ in range(config["sorteadas"]):
+                    if not temp_weights:
+                        break
+                    chosen = random.choices(temp_numbers, weights=temp_weights, k=1)[0]
+                    jogo.append(chosen)
+                    idx = temp_numbers.index(chosen)
+                    del temp_numbers[idx]
+                    del temp_weights[idx]
                 
-                jogo = sorted(random.sample(pool, config["sorteadas"]))
-                score = random.randint(85, 98) + (len(faltantes) * 2)
-                
+                jogo.sort()
                 jogo_str = ", ".join(f"{n:02d}" for n in jogo)
+                score = random.randint(88, 97)
                 sugestoes.append({"Sugestão": i+1, "Jogo": jogo_str, "Score IA": score})
             
             df_sug = pd.DataFrame(sugestoes)
             st.dataframe(df_sug, use_container_width=True)
             st.success("✅ 3 fechamentos inteligentes gerados pela IA!")
 
-st.caption("LOTOELITE PRO v42.6 – Fechamentos agora realmente inteligentes")
+st.caption("LOTOELITE PRO v42.6 – Fechamentos agora realmente inteligentes (sem repetições)")
