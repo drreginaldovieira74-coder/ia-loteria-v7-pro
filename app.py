@@ -5,7 +5,6 @@ def gerar_jogo_ciclo(config, analise, modo="AVANCADO"):
     jogo = []
 
     if modo == "ULTRA_FOCUS":
-        # Pega todas as faltantes e embaralha. Nunca ordena.
         if len(faltantes) >= total_jogo:
             jogo = random.sample(faltantes, total_jogo)
         else:
@@ -49,5 +48,4 @@ def gerar_jogo_ciclo(config, analise, modo="AVANCADO"):
         if candidato not in jogo: 
             jogo.append(candidato)
 
-    # NUNCA MAIS ORDENA - retorna embaralhado
     return [int(x) for x in jogo[:total_jogo]]
