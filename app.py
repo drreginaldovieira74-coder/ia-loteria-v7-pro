@@ -5,9 +5,10 @@ import random
 from collections import defaultdict
 
 st.set_page_config(page_title="LOTOELITE PRO", layout="wide")
-st.title("LOTOELITE PRO v49.9")
+st.title("LOTOELITE PRO v50.0")
 st.markdown("**Ciclo 4-6 sorteios | Memoria 9-11 | IA Ultra Focus**")
 
+# ========================= LOTERIAS COMPLETAS =========================
 loteria_options = {
     "Lotofacil": {"nome": "Lotofacil", "total": 25, "sorteadas": 15, "mantidas": [9, 11]},
     "Lotomania": {"nome": "Lotomania", "total": 100, "sorteadas": 50, "mantidas": [35, 40]},
@@ -18,8 +19,8 @@ loteria_options = {
 
 loteria = st.selectbox("Escolha a loteria", list(loteria_options.keys()))
 config = loteria_options[loteria]
-st.success("**{}** — Ciclo fecha em 4-6 sorteios | Mantem {}-{} dezenas".format(
-    config['nome'], config['mantidas'][0], config['mantidas'][1]))
+st.success("**{}** — Ciclo fecha em 4-6 sorteios | Mantem {}-{} dezenas | Total: {} dezenas".format(
+    config['nome'], config['mantidas'][0], config['mantidas'][1], config['total']))
 
 arquivo = st.file_uploader("CSV de {}".format(config['nome']), type=["csv"])
 if arquivo is None: 
@@ -79,7 +80,7 @@ def analisar_ciclo_completo(df, config):
         "quentes": quentes
     }
 
-def gerar_jogo_ciclo(config, analise, modo="AVANCADO"):
+def gerar_jogo_ciclo(config, analise, modo="AVANCADO", ordenar_visual=False):
     faltantes = analise["faltantes"]
     memoria = analise["memoria"]
     total_jogo = config["sorteadas"]
@@ -130,24 +131,34 @@ def gerar_jogo_ciclo(config, analise, modo="AVANCADO"):
         if candidato not in jogo: 
             jogo.append(candidato)
 
-    return [int(x) for x in jogo[:total_jogo]]
+    jogo = [int(x) for x in jogo[:total_jogo]]
+    
+    # Só ordena se o usuário pedir visualmente
+    if ordenar_visual:
+        jogo = sorted(jogo)
+    
+    return jogo
 
-def fechamento_inteligente_3jogos(config, analise):
+def fechamento_inteligente_3jogos(config, analise, ordenar_visual=False):
     faltantes, memoria, quentes = analise["faltantes"], analise["memoria"], analise["quentes"]
     jogos = []
 
-    j1 = gerar_jogo_ciclo(config, analise, "ULTRA_FOCUS")
+    j1 = gerar_jogo_ciclo(config, analise, "ULTRA_FOCUS", ordenar_visual)
     jogos.append({"nome": "Fechar Ciclo", "jogo": j1, "estrategia": "100% faltantes + memoria"})
 
     base = memoria[:config["mantidas"][1]] if len(memoria) >= config["mantidas"][0] else memoria
     resto = [q for q in quentes if q not in base]
-    j2 = sorted(base + random.sample(resto, min(len(resto), config["sorteadas"] - len(base))))
+    j2 = base + random.sample(resto, min(len(resto), config["sorteadas"] - len(base)))
+    if ordenar_visual:
+        j2 = sorted(j2)
     jogos.append({"nome": "Memoria Pura", "jogo": j2, "estrategia": "{} mantidas + quentes".format(len(base))})
 
     if len(faltantes) >= config["sorteadas"]:
-        j3 = sorted(random.sample(faltantes, config["sorteadas"]))
+        j3 = random.sample(faltantes, config["sorteadas"])
     else:
-        j3 = sorted(faltantes + random.sample([q for q in quentes if q not in faltantes], config["sorteadas"] - len(faltantes)))
+        j3 = faltantes + random.sample([q for q in quentes if q not in faltantes], config["sorteadas"] - len(faltantes))
+    if ordenar_visual:
+        j3 = sorted(j3)
     jogos.append({"nome": "Ataque Faltantes", "jogo": j3, "estrategia": "Maximo de faltantes"})
 
     return jogos
@@ -178,13 +189,18 @@ with tab1:
     else:
         st.info("INICIO. Ciclo formando, {}º sorteio".format(analise['sorteios_ciclo']))
 
-    modo_focus = st.select_slider("Modo Ultra Focus", ["MODERADO", "AVANCADO", "SUPER_FOCUS", "ULTRA_FOCUS"], value="AVANCADO")
+    col_a, col_b = st.columns(2)
+    with col_a:
+        modo_focus = st.select_slider("Modo Ultra Focus", ["MODERADO", "AVANCADO", "SUPER_FOCUS", "ULTRA_FOCUS"], value="AVANCADO")
+    with col_b:
+        ordenar = st.checkbox("Ordenar números visualmente", value=False, help="Marca pra ver ordenado. Desmarcado = variação real")
+    
     qtd = st.slider("Quantos jogos?", 5, 50, 15)
 
     if st.button("GERAR JOGOS COM CICLO FORTE", type="primary"):
-        st.write("**Modo: {} | Fase: {}**".format(modo_focus, analise['fase']))
+        st.write("**Modo: {} | Fase: {} | Ordenado: {}**".format(modo_focus, analise['fase'], "Sim" if ordenar else "Nao"))
         for i in range(qtd):
-            jogo = gerar_jogo_ciclo(config, analise, modo_focus)
+            jogo = gerar_jogo_ciclo(config, analise, modo_focus, ordenar)
             st.code("Jogo {:02d}: {}".format(i+1, jogo))
 
 with tab2:
@@ -317,8 +333,9 @@ with tab6:
 with tab7:
     st.subheader("Fechamentos Inteligentes")
     st.info("IA escolhe 3 jogos matematicos baseado no ciclo 4-6 + memoria 9-11")
+    ordenar_fechamento = st.checkbox("Ordenar jogos do fechamento", value=False)
     if st.button("Gerar 3 Melhores Fechamentos pela IA", type="primary"):
-        jogos_ia = fechamento_inteligente_3jogos(config, analise)
+        jogos_ia = fechamento_inteligente_3jogos(config, analise, ordenar_fechamento)
         for idx, j in enumerate(jogos_ia, 1):
             st.markdown("### Jogo IA {}: {}".format(idx, j['nome']))
             st.caption(j['estrategia'])
