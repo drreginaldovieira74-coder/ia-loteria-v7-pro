@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import numpy as np
 import random
 
 st.set_page_config(page_title="LOTOELITE PRO", layout="wide")
@@ -28,7 +29,6 @@ if arquivo is None:
 df = pd.read_csv(arquivo, header=None)
 st.success(f"✅ {len(df)} concursos carregados!")
 
-# Função simples de ciclo (segura)
 def detectar_ciclo(df, config):
     try:
         historico = df.iloc[:, :config["sorteadas"]].values.astype(int)
@@ -36,6 +36,7 @@ def detectar_ciclo(df, config):
         numeros_sorteados = set(np.concatenate(janela))
         faltantes = sorted(set(range(1, config["total"] + 1)) - numeros_sorteados)
         progresso = len(numeros_sorteados) / config["total"]
+        
         if len(faltantes) == 0:
             fase = "FIM DO CICLO"
             boost = 15.0
