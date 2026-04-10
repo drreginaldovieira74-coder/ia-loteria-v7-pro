@@ -64,39 +64,32 @@ with tab1:
         csv = df_jogos.to_csv(index=False).encode('utf-8')
         st.download_button("📥 Baixar jogos (CSV)", csv, f"jogos_{config['nome']}.csv", "text/csv")
 
-# ====================== TAB 7 - FECHAMENTOS REALMENTE INTELIGENTES ======================
+# ====================== TAB 7 - FECHAMENTOS INTELIGENTES (VERSÃO FINAL) ======================
 with tab7:
     st.subheader("🔒 Fechamentos Inteligentes")
     st.write("3 sugestões geradas pela IA usando ciclo + faltantes + aprendizado pessoal")
 
     if st.button("🔥 Gerar 3 Melhores Fechamentos pela IA"):
-        with st.spinner("IA analisando ciclo, faltantes e pesos aprendidos..."):
+        with st.spinner("IA analisando ciclo, faltantes e pesos..."):
             fase, faltantes, _ = detectar_ciclo(df, config)
             pesos = st.session_state.pesos_aprendidos[config['nome']][fase]
             
             sugestoes = []
             for i in range(3):
-                # === GERAÇÃO INTELIGENTE SEM REPETIÇÃO ===
-                weights = []
-                numbers = list(range(1, config["total"] + 1))
-                for num in numbers:
-                    peso = pesos.get(num, 1.0)
-                    if num in faltantes:
-                        peso += 4.0          # forte prioridade para faltantes
-                    weights.append(peso)
+                # === GERAÇÃO GARANTIDA SEM REPETIÇÃO ===
+                candidates = list(range(1, config["total"] + 1))
+                weights = [pesos.get(n, 1.0) + (4.0 if n in faltantes else 0) for n in candidates]
                 
                 # Amostragem ponderada sem repetição
                 jogo = []
-                temp_numbers = numbers[:]
-                temp_weights = weights[:]
                 for _ in range(config["sorteadas"]):
-                    if not temp_weights:
+                    if not candidates:
                         break
-                    chosen = random.choices(temp_numbers, weights=temp_weights, k=1)[0]
+                    chosen = random.choices(candidates, weights=weights, k=1)[0]
                     jogo.append(chosen)
-                    idx = temp_numbers.index(chosen)
-                    del temp_numbers[idx]
-                    del temp_weights[idx]
+                    idx = candidates.index(chosen)
+                    del candidates[idx]
+                    del weights[idx]
                 
                 jogo.sort()
                 jogo_str = ", ".join(f"{n:02d}" for n in jogo)
