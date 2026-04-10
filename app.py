@@ -2,16 +2,13 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import random
-import plotly.express as px
-import plotly.graph_objects as go
 from collections import defaultdict
-import datetime
 
 st.set_page_config(page_title="LOTOELITE PRO", layout="wide")
 st.title("🪄 LOTOELITE PRO – IA + Ciclos + Bankroll")
 st.markdown("**A mais avançada ferramenta de loterias do Brasil**")
 
-# ========================= TODAS AS LOTERIAS (incluindo Milionária) =========================
+# ========================= TODAS AS LOTERIAS =========================
 loteria_options = {
     "Lotofácil":    {"nome": "Lotofácil",    "total": 25, "sorteadas": 15, "tipo_ciclo": "full_coverage"},
     "Lotomania":    {"nome": "Lotomania",    "total": 50, "sorteadas": 50, "tipo_ciclo": "full_coverage"},
@@ -36,7 +33,7 @@ if arquivo is None:
     st.stop()
 
 df = pd.read_csv(arquivo, header=None)
-st.success(f"✅ {len(df)} concursos carregados de {config['nome']}!")
+st.success(f"✅ {len(df)} concursos carregados!")
 
 # ========================= DETECÇÃO DE CICLO =========================
 def detectar_ciclo(df, config):
@@ -49,7 +46,14 @@ def detectar_ciclo(df, config):
     return fase, faltantes, progresso
 
 fase, faltantes, progresso = detectar_ciclo(df, config)
-st.metric("Fase do Ciclo", fase, f"{progresso:.1%} cobertura")
+
+col1, col2, col3 = st.columns(3)
+col1.metric("Fase do Ciclo", fase)
+col2.metric("Cobertura", f"{progresso:.1%}")
+col3.metric("Dezenas faltantes", len(faltantes))
+
+if faltantes:
+    st.write("**Dezenas que ainda não saíram no ciclo atual:**", faltantes)
 
 # ========================= MOTOR DE APRENDIZADO PESSOAL =========================
 if 'pesos_aprendidos' not in st.session_state:
@@ -79,12 +83,11 @@ if st.button("🚀 GERAR JOGOS ELITE"):
         jogos.append(jogo)
     
     df_jogos = pd.DataFrame(jogos, columns=[f"D{i+1}" for i in range(config["sorteadas"])])
-    st.dataframe(df_jogos)
+    st.dataframe(df_jogos, use_container_width=True)
     
     excel = df_jogos.to_excel(index=False)
     st.download_button("📥 Baixar todos os jogos (Excel)", excel, f"jogos_{config['nome']}.xlsx", "application/vnd.ms-excel")
 
 st.markdown("---")
-st.caption("LOTOELITE PRO v36.1 – Versão estável sem PyTorch (roda perfeitamente no Streamlit Cloud)")
-
-st.info("✅ Milionária e todas as outras loterias agora aparecem normalmente!")
+st.caption("LOTOELITE PRO v36.2 – Versão 100% estável (sem torch e sem plotly)")
+st.info("✅ Milionária e todas as loterias agora aparecem e funcionam!")
