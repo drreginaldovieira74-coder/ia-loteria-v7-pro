@@ -6,33 +6,30 @@ from collections import defaultdict
 
 st.set_page_config(page_title="LOTOELITE PRO", layout="wide")
 st.title("🪄 LOTOELITE PRO")
-st.markdown("**Ciclo Real: 4-6 sorteios até zerar | Memória: 9-11 mantidas • v48.1**")
+st.markdown("**Ciclo 4-6 sorteios | Memória 9-11 | IA Ultra Focus • v48.1**")
 
 # ========================= LOTERIAS =========================
 loteria_options = {
     "Lotofácil": {"nome": "Lotofácil", "total": 25, "sorteadas": 15, "mantidas": [9, 11]},
-    "Lotomania": {"nome": "Lotomania", "total": 50, "sorteadas": 50, "mantidas": [35, 40]},
+    "Lotomania": {"nome": "Lotomania", "total": 100, "sorteadas": 50, "mantidas": [35, 40]},
     "Quina": {"nome": "Quina", "total": 80, "sorteadas": 5, "mantidas": [2, 3]},
     "Mega-Sena": {"nome": "Mega-Sena", "total": 60, "sorteadas": 6, "mantidas": [3, 4]},
-    "Milionária": {"nome": "Milionária", "total": 50, "sorteadas": 6, "mantidas": [4, 5]},
+    "Milionária": {"nome": "Milionária", "total": 50, "sorteadas": 6, "mantidas": [3, 4]},
 }
 
 loteria = st.selectbox("🎯 Escolha a loteria", list(loteria_options.keys()))
 config = loteria_options[loteria]
+st.success(f"**{config['nome']}** — Ciclo fecha em 4-6 sorteios | Mantém {config['mantidas'][0]}-{config['mantidas'][1]} dezenas")
 
-st.success(f"**{config['nome']}** — Ciclo fecha em 4-6 sorteios | {config['mantidas'][0]}-{config['mantidas'][1]} dezenas mantidas")
-
-# ========================= UPLOAD =========================
 arquivo = st.file_uploader(f"CSV de {config['nome']}", type=["csv"])
-if arquivo is None:
-    st.stop()
+if arquivo is None: st.stop()
 
 df = pd.read_csv(arquivo, header=None)
 df = df.iloc[:, :config["sorteadas"]].dropna().astype(int)
 st.success(f"✅ {len(df)} concursos carregados!")
 
-# ========================= MOTOR DE CICLO 4-6 COM MEMÓRIA =========================
-def analisar_ciclo_real(df, config):
+# ========================= MOTOR CICLO 4-6 + MEMÓRIA 9-11 =========================
+def analisar_ciclo_completo(df, config):
     total = config["total"]
     mantidas_min, mantidas_max = config["mantidas"]
     ciclos = []
@@ -42,142 +39,200 @@ def analisar_ciclo_real(df, config):
     for idx, row in df.iterrows():
         ciclo_atual.append(idx)
         dezenas_vistas.update(row.values)
-        if len(dezenas_vistas) == total:
+        if len(dezenas_vistas) == total: # CICLO FECHOU
             ciclos.append({
-                "inicio": ciclo_atual[0],
-                "fim": ciclo_atual[-1],
+                "inicio": ciclo_atual[0], "fim": ciclo_atual[-1],
                 "duracao": len(ciclo_atual),
-                "dezenas_ultimo_sorteio": set(df.iloc[ciclo_atual[-1], :config["sorteadas"]].values)
+                "dezenas_final": set(df.iloc[ciclo_atual[-1], :config["sorteadas"]].values)
             })
             ciclo_atual = []
             dezenas_vistas = set()
 
-    # Ciclo em andamento
-    ciclo_em_andamento = {
-        "sorteios": len(ciclo_atual),
-        "faltantes": sorted(set(range(1, total+1)) - dezenas_vistas),
-        "progresso": len(dezenas_vistas) / total,
-        "dezenas_atuais": dezenas_vistas
-    }
+    # Ciclo atual
+    faltantes = sorted(set(range(1, total+1)) - dezenas_vistas)
+    progresso = len(dezenas_vistas) / total
+    sorteios_ciclo = len(ciclo_atual)
 
-    # Fase do ciclo
-    if ciclo_em_andamento["sorteios"] == 0:
-        fase = "CICLO_ZERADO"
-        boost = 20
-    elif ciclo_em_andamento["sorteios"] <= 3:
-        fase = "INÍCIO"
-        boost = 5
-    elif ciclo_em_andamento["sorteios"] <= 5:
-        fase = "MEIO"
-        boost = 10
-    else:
-        fase = "FIM"
-        boost = 18
+    # Fase baseada na sua regra 4-6
+    if sorteios_ciclo == 0: fase, boost = "ZERADO", 20
+    elif sorteios_ciclo <= 3: fase, boost = "INÍCIO", 5
+    elif sorteios_ciclo <= 5: fase, boost = "MEIO", 10
+    else: fase, boost = "FIM", 18 # 6+ sorteios = deve fechar
 
-    # Memória do ciclo anterior
+    # Memória: interseção com ciclo anterior
     memoria = []
     if len(ciclos) >= 1:
-        ultimo = ciclos[-1]
-        if len(ciclos) >= 2:
-            penultimo = ciclos[-2]
-            memoria = list(penultimo["dezenas_ultimo_sorteio"] & ciclo_em_andamento["dezenas_atuais"])
+        memoria = list(ciclos[-1]["dezenas_final"] & dezenas_vistas)
 
     return {
-        "fase": fase,
-        "faltantes": ciclo_em_andamento["faltantes"],
-        "progresso": ciclo_em_andamento["progresso"],
-        "sorteios_no_ciclo": ciclo_em_andamento["sorteios"],
-        "boost": boost,
-        "memoria_mantidas": memoria,
-        "historico_ciclos": ciclos,
-        "previsao_fechamento": 6 - ciclo_em_andamento["sorteios"] if ciclo_em_andamento["sorteios"] < 6 else 0
+        "fase": fase, "faltantes": faltantes, "progresso": progresso,
+        "sorteios_ciclo": sorteios_ciclo, "boost": boost, "memoria": memoria,
+        "ciclos_hist": ciclos, "previsao_fecha": max(0, 6 - sorteios_ciclo),
+        "quentes": np.argsort(np.bincount(df.tail(20).values.flatten(), minlength=total+1)[1:])[-15:][::-1] + 1
     }
 
-def gerar_jogo_memoria(config, analise):
-    faltantes = analise["faltantes"]
-    memoria = analise["memoria_mantidas"]
-    fase = analise["fase"]
+def gerar_jogo_ciclo(config, analise, modo="AVANÇADO"):
+    """Modos: MODERADO | AVANÇADO | SUPER_FOCUS | ULTRA_FOCUS"""
+    faltantes, memoria, fase = analise["faltantes"], analise["memoria"], analise["fase"]
     total_jogo = config["sorteadas"]
-    mantidas_min, mantidas_max = config["mantidas"]
-
+    m_min, m_max = config["mantidas"]
     jogo = []
 
-    # Prioridade máxima no FIM do ciclo
-    if fase == "FIM" and len(faltantes) > 0:
-        qtd = min(len(faltantes), total_jogo)
-        jogo.extend(random.sample(faltantes, qtd))
+    if modo == "ULTRA_FOCUS": # Só faltantes + memória, zero aleatório
+        jogo = faltantes[:total_jogo]
+        if len(jogo) < total_jogo:
+            jogo.extend([m for m in memoria if m not in jogo][:total_jogo - len(jogo)])
+    elif modo == "SUPER_FOCUS": # 90% faltantes/memória
+        qtd_f = min(int(total_jogo * 0.6), len(faltantes))
+        qtd_m = min(random.randint(m_min, m_max), len(memoria), total_jogo - qtd_f)
+        jogo = random.sample(faltantes, qtd_f) + random.sample([m for m in memoria if m not in faltantes], qtd_m)
+    elif modo == "AVANÇADO": # 70% faltantes/memória
+        qtd_f = min(int(total_jogo * 0.4), len(faltantes))
+        qtd_m = min(m_min, len(memoria), total_jogo - qtd_f)
+        jogo = random.sample(faltantes, qtd_f) + random.sample([m for m in memoria if m not in faltantes], qtd_m)
+    else: # MODERADO: 50% faltantes/memória
+        qtd_f = min(int(total_jogo * 0.3), len(faltantes))
+        qtd_m = min(m_min - 1, len(memoria), total_jogo - qtd_f)
+        jogo = random.sample(faltantes, qtd_f) + random.sample([m for m in memoria if m not in faltantes], qtd_m)
 
-    # Manter 9-11 da memória
-    vagas = random.randint(mantidas_min, mantidas_max)
-    memoria_disponivel = [n for n in memoria if n not in jogo]
-    if memoria_disponivel:
-        qtd_mem = min(vagas, len(memoria_disponivel), total_jogo - len(jogo))
-        jogo.extend(random.sample(memoria_disponivel, qtd_mem))
-
-    # Completar o jogo
+    # Completa se faltar
     while len(jogo) < total_jogo:
-        candidato = random.randint(1, config["total"])
-        if candidato not in jogo:
-            jogo.append(candidato)
+        candidato = random.choice(analise["quentes"].tolist())
+        if candidato not in jogo: jogo.append(candidato)
 
-    random.shuffle(jogo)
-    return sorted(jogo)
+    return sorted(jogo[:total_jogo])
 
-# ========================= 7 ABAS =========================
+def fechamento_inteligente_3jogos(config, analise):
+    """Sua função: IA escolhe 3 jogos baseado no ciclo"""
+    faltantes, memoria, quentes = analise["faltantes"], analise["memoria"], analise["quentes"]
+    jogos = []
+
+    # Jogo 1: Foco total em fechar ciclo
+    j1 = gerar_jogo_ciclo(config, analise, "ULTRA_FOCUS")
+    jogos.append({"nome": "Fechar Ciclo", "jogo": j1, "estrategia": "100% faltantes + memória"})
+
+    # Jogo 2: Equilíbrio memória + quentes
+    base = memoria[:config["mantidas"][1]] if len(memoria) >= config["mantidas"][0] else memoria
+    resto = [q for q in quentes if q not in base]
+    j2 = sorted(base + random.sample(resto, config["sorteadas"] - len(base)))
+    jogos.append({"nome": "Memória Pura", "jogo": j2, "estrategia": f"{len(base)} mantidas + quentes"})
+
+    # Jogo 3: Rotação das faltantes
+    if len(faltantes) >= config["sorteadas"]:
+        j3 = sorted(random.sample(faltantes, config["sorteadas"]))
+    else:
+        j3 = sorted(faltantes + random.sample([q for q in quentes if q not in faltantes], config["sorteadas"] - len(faltantes)))
+    jogos.append({"nome": "Ataque Faltantes", "jogo": j3, "estrategia": "Máximo de faltantes possível"})
+
+    return jogos
+
+# ========================= SUAS 7 ABAS ORIGINAIS =========================
 tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
-    "🎟️ Gerador Memória", "📊 Status do Ciclo", "🧪 Backtest Memória",
-    "📜 Histórico Ciclos", "👤 Meu Perfil", "💰 Bankroll", "🔒 Fechamentos Inteligentes"
+    "🎟️ Gerador de Jogos", "📊 Estatísticas", "🔄 Simulador Histórico",
+    "🧪 Backtesting com IA", "👤 Meu Perfil", "💰 Bankroll", "🔒 Fechamentos Inteligentes"
 ])
 
+analise = analisar_ciclo_completo(df, config)
+
 with tab1:
-    st.subheader("Gerador com Memória de 9-11 Dezenas")
-    analise = analisar_ciclo_real(df, config)
+    st.subheader("Gerador de Jogos – Ciclo 4-6 como Motor")
     c1, c2, c3, c4 = st.columns(4)
-    c1.metric("Fase", analise["fase"], f"{analise['sorteios_no_ciclo']}º sorteio")
-    c2.metric("Progresso", f"{analise['progresso']:.0%}")
-    c3.metric("Faltantes", len(analise["faltantes"]))
-    c4.metric("Memória", len(analise["memoria_mantidas"]))
-    qtd = st.slider("Quantos jogos?", 1, 50, 15)
-    if st.button("🚀 GERAR COM MEMÓRIA DE CICLO", type="primary"):
+    c1.metric("Fase do Ciclo", analise["fase"], f"{analise['sorteios_ciclo']}º sorteio")
+    c2.metric("Faltantes", len(analise["faltantes"]))
+    c3.metric("Memória", len(analise["memoria"]))
+    c4.metric("Fecha em", f"{analise['previsao_fecha']} concursos")
+
+    if analise["fase"] == "FIM":
+        st.error(f"🔥 FIM DE CICLO! {len(analise['faltantes'])} faltantes. Hora de atacar!")
+    elif analise["fase"] == "MEIO":
+        st.warning(f"⚖️ MEIO DO CICLO. {6-analise['sorteios_ciclo']} sorteios pro fim")
+    else:
+        st.info(f"🌱 INÍCIO. Ciclo formando, {analise['sorteios_ciclo']}º sorteio")
+
+    modo_focus = st.select_slider("Modo Ultra Focus", ["MODERADO", "AVANÇADO", "SUPER_FOCUS", "ULTRA_FOCUS"], value="AVANÇADO")
+    qtd = st.slider("Quantos jogos?", 5, 50, 15)
+
+    if st.button("🚀 GERAR JOGOS COM CICLO FORTE", type="primary"):
+        st.write(f"**Modo: {modo_focus} | Fase: {analise['fase']}**")
         for i in range(qtd):
-            jogo = gerar_jogo_memoria(config, analise)
+            jogo = gerar_jogo_ciclo(config, analise, modo_focus)
             st.code(f"Jogo {i+1:02d}: {jogo}")
 
 with tab2:
-    st.subheader("📊 Status do Ciclo Atual")
-    analise = analisar_ciclo_real(df, config)
+    st.subheader("📊 Estatísticas do Ciclo")
+    st.metric("Fase Atual", analise["fase"])
+    st.metric("Progresso do Ciclo", f"{analise['progresso']:.0%}")
     st.progress(analise["progresso"])
     col1, col2 = st.columns(2)
-    with col1:
-        st.write("**Faltantes:**")
-        st.code(", ".join(map(str, analise["faltantes"])) if analise["faltantes"] else "CICLO COMPLETO")
-    with col2:
-        st.write("**Memória mantida:**")
-        st.code(", ".join(map(str, analise["memoria_mantidas"])) if analise["memoria_mantidas"] else "Primeiro ciclo")
+    col1.write("**Faltantes pra fechar:**")
+    col1.code(", ".join(map(str, analise["faltantes"])) if analise["faltantes"] else "Ciclo completo")
+    col2.write(f"**Memória {config['mantidas'][0]}-{config['mantidas'][1]}:**")
+    col2.code(", ".join(map(str, analise["memoria"])) if analise["memoria"] else "Sem memória")
+
+    if analise["ciclos_hist"]:
+        duracoes = [c["duracao"] for c in analise["ciclos_hist"]]
+        st.metric("Duração média dos ciclos", f"{np.mean(duracoes):.1f} sorteios")
+        if 4 <= np.mean(duracoes) <= 6:
+            st.success("✅ Confirmado: ciclo fecha em 4-6 sorteios em média")
 
 with tab3:
-    st.subheader("🧪 Backtest: Memória de 9-11 Funciona?")
-    if st.button("▶️ RODAR BACKTEST"):
-        st.info("Backtest em execução... (funcionalidade pronta)")
+    st.subheader("🔄 Simulador Histórico por Ciclo")
+    st.info("Simula como seria apostar em cada fase do ciclo")
+    if st.button("Rodar Simulação"):
+        fases_res = defaultdict(list)
+        for i in range(20, len(df)):
+            an = analisar_ciclo_completo(df.iloc[:i], config)
+            jogo = gerar_jogo_ciclo(config, an, "AVANÇADO")
+            acertos = len(set(jogo) & set(df.iloc[i, :config["sorteadas"]].values))
+            fases_res[an["fase"]].append(acertos)
+        for fase, acertos in fases_res.items():
+            st.metric(f"Média na fase {fase}", f"{np.mean(acertos):.2f} acertos", f"{len(acertos)} concursos")
 
 with tab4:
-    st.subheader("📜 Histórico de Ciclos Completos")
-    analise = analisar_ciclo_real(df, config)
-    if analise["historico_ciclos"]:
-        st.dataframe(pd.DataFrame(analise["historico_ciclos"]))
-    else:
-        st.info("Ainda não há ciclos completos no histórico")
+    st.subheader("🧪 Backtesting com IA - Memória 9-11")
+    st.info("Testa se manter memória + forçar fim de ciclo dá mais acerto")
+    if st.button("▶️ RODAR BACKTEST COMPLETO"):
+        res = []
+        for i in range(25, len(df)):
+            an = analisar_ciclo_completo(df.iloc[:i], config)
+            jogo = gerar_jogo_ciclo(config, an, "SUPER_FOCUS")
+            acertos = len(set(jogo) & set(df.iloc[i, :config["sorteadas"]].values))
+            acertos_mem = len(set(jogo) & set(an["memoria"]) & set(df.iloc[i, :config["sorteadas"]].values))
+            res.append({"fase": an["fase"], "acertos": acertos, "acertos_memoria": acertos_mem})
+        df_bt = pd.DataFrame(res)
+        st.dataframe(df_bt.groupby('fase')['acertos'].agg(['mean', 'count']))
+        st.success(f"Média com memória: {df_bt['acertos_memoria'].sum()} acertos vieram da memória")
 
 with tab5:
-    st.subheader("👤 Meu Perfil")
-    st.info("Aprendizado pessoal baseado no ciclo (em breve)")
+    st.subheader("👤 Meu Perfil - Aprendizado do Ciclo")
+    st.info("IA aprende seu padrão de ciclo e sugere ajuste")
+    if analise["ciclos_hist"]:
+        dur_media = np.mean([c["duracao"] for c in analise["ciclos_hist"]])
+        st.write(f"Seu ciclo fecha em média a cada **{dur_media:.1f} sorteios**")
+        if analise["sorteios_ciclo"] > dur_media + 1:
+            st.warning(f"⚠️ Ciclo atual já passou da média. Está no {analise['sorteios_ciclo']}º sorteio, média é {dur_media:.1f}")
+        else:
+            st.success("✅ Ciclo dentro do esperado")
+    st.write(f"**Memória detectada:** você mantém {len(analise['memoria'])} dezenas entre ciclos")
 
 with tab6:
-    st.subheader("💰 Bankroll")
-    st.info("Simulação de bankroll com estratégia de ciclo")
+    st.subheader("💰 Bankroll - Estratégia por Fase")
+    st.info("Sugestão de aposta baseada na fase do ciclo")
+    banca = st.number_input("Sua banca R$", value=100.0)
+    if analise["fase"] == "FIM":
+        st.error(f"🔥 FIM DE CICLO: Aposte {banca*0.4:.2f} - 40% da banca. Máxima agressividade")
+    elif analise["fase"] == "MEIO":
+        st.warning(f"⚖️ MEIO: Aposte {banca*0.2:.2f} - 20% da banca")
+    else:
+        st.info(f"🌱 INÍCIO: Aposte {banca*0.1:.2f} - 10% da banca. Modo observação")
 
 with tab7:
     st.subheader("🔒 Fechamentos Inteligentes")
-    st.info("Clique no botão abaixo para gerar fechamentos com foco no ciclo")
-
-st.caption("LOTOELITE PRO v48.1 – Todas as 7 abas corrigidas")
+    st.info("IA escolhe 3 jogos matemáticos baseado no ciclo 4-6 + memória 9-11")
+    if st.button("🔥 Gerar 3 Melhores Fechamentos pela IA", type="primary"):
+        jogos_ia = fechamento_inteligente_3jogos(config, analise)
+        for idx, j in enumerate(jogos_ia, 1):
+            st.markdown(f"### Jogo IA {idx}: {j['nome']}")
+            st.caption(j['estrategia'])
+            st.code(f"{j['jogo']}")
+        st.success("✅ 3 jogos gerados com foco total no ciclo + memória")
