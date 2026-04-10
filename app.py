@@ -1,3 +1,110 @@
+import streamlit as st
+import pandas as pd
+import numpy as np
+import random
+from collections import defaultdict
+
+st.set_page_config(page_title="LOTOELITE PRO", layout="wide")
+st.title("LOTOELITE PRO v50.4")
+st.markdown("**Ciclo por Loteria | Memoria 9-11 | IA Ultra Focus**")
+
+loteria_options = {
+    "Lotofacil": {
+        "nome": "Lotofacil", "total": 25, "sorteadas": 15, 
+        "mantidas": [9, 11], "ciclo_esperado": [4, 6], "fase_limites": [2, 4]
+    },
+    "Lotomania": {
+        "nome": "Lotomania", "total": 100, "sorteadas": 50, 
+        "mantidas": [35, 40], "ciclo_esperado": [8, 12], "fase_limites": [4, 8]
+    },
+    "Quina": {
+        "nome": "Quina", "total": 80, "sorteadas": 5, 
+        "mantidas": [2, 3], "ciclo_esperado": [35, 50], "fase_limites": [15, 35]
+    },
+    "Mega-Sena": {
+        "nome": "Mega-Sena", "total": 60, "sorteadas": 6, 
+        "mantidas": [3, 4], "ciclo_esperado": [22, 30], "fase_limites": [10, 22]
+    },
+    "Milionaria": {
+        "nome": "Milionaria", "total": 50, "sorteadas": 6, 
+        "mantidas": [3, 4], "ciclo_esperado": [18, 25], "fase_limites": [8, 18]
+    }
+}
+
+loteria = st.selectbox("Escolha a loteria", list(loteria_options.keys()))
+config = loteria_options[loteria]
+
+st.success("**{}** — Ciclo fecha em {}-{} sorteios | Mantem {}-{} dezenas | Total: {} dezenas".format(
+    config['nome'], 
+    config['ciclo_esperado'][0], 
+    config['ciclo_esperado'][1], 
+    config['mantidas'][0], 
+    config['mantidas'][1], 
+    config['total']
+))
+
+arquivo = st.file_uploader("CSV de {}".format(config['nome']), type=["csv"])
+if arquivo is None: 
+    st.warning("Envie o CSV pra continuar")
+    st.stop()
+
+try:
+    df = pd.read_csv(arquivo, header=None)
+    df = df.iloc[:, :config["sorteadas"]].dropna().astype(int)
+    st.success("OK {} concursos carregados!".format(len(df)))
+except Exception as e:
+    st.error("Erro ao ler CSV: {}".format(e))
+    st.stop()
+
+def analisar_ciclo_completo(df, config):
+    total = config["total"]
+    ciclo_min, ciclo_max = config["ciclo_esperado"]
+    lim_inicio, lim_meio = config["fase_limites"]
+    
+    ciclos = []
+    ciclo_atual = []
+    dezenas_vistas = set()
+
+    for idx, row in df.iterrows():
+        ciclo_atual.append(idx)
+        dezenas_vistas.update([int(x) for x in row.values])
+        if len(dezenas_vistas) == total:
+            ciclos.append({
+                "inicio": ciclo_atual[0], 
+                "fim": ciclo_atual[-1],
+                "duracao": len(ciclo_atual),
+                "dezenas_final": set([int(x) for x in df.iloc[ciclo_atual[-1], :config["sorteadas"]].values])
+            })
+            ciclo_atual = []
+            dezenas_vistas = set()
+
+    faltantes = sorted(set(range(1, total+1)) - dezenas_vistas)
+    progresso_raw = len(dezenas_vistas) / total if total > 0 else 0.0
+    progresso = float(max(0.0, min(1.0, progresso_raw)))
+    sorteios_ciclo = len(ciclo_atual)
+
+    if sorteios_ciclo == 0: 
+        fase, boost = "ZERADO", 20
+    elif sorteios_ciclo <= lim_inicio: 
+        fase, boost = "INICIO", 5
+    elif sorteios_ciclo <= lim_meio: 
+        fase, boost = "MEIO", 10
+    else: 
+        fase, boost = "FIM", 18
+
+    memoria = []
+    if len(ciclos) >= 1:
+        memoria = list(ciclos[-1]["dezenas_final"] & dezenas_vistas)
+
+    quentes = [int(x) for x in np.argsort(np.bincount(df.tail(20).values.flatten(), minlength=total+1)[1:])[-15:][::-1] + 1]
+
+    return {
+        "fase": fase, "faltantes": [int(x) for x in faltantes], "progresso": progresso,
+        "sorteios_ciclo": sorteios_ciclo, "boost": boost, "memoria": [int(x) for x in memoria],
+        "ciclos_hist": ciclos, "previsao_fecha": max(0, ciclo_max - sorteios_ciclo),
+        "quentes": quentes, "ciclo_esperado": config["ciclo_esperado"]
+    }
+
 def gerar_jogo_ciclo(config, analise, modo="AVANCADO", ordenar_visual=False):
     faltantes = analise["faltantes"]
     memoria = analise["memoria"]
@@ -9,7 +116,6 @@ def gerar_jogo_ciclo(config, analise, modo="AVANCADO", ordenar_visual=False):
         if len(faltantes) >= total_jogo:
             jogo = random.sample(faltantes, total_jogo)
         else:
-            # Pega todas as faltantes que tem + completa com memoria
             jogo = faltantes.copy() if len(faltantes) > 0 else []
             mem_shuffled = random.sample(memoria, min(len(memoria), total_jogo - len(jogo)))
             jogo.extend([m for m in mem_shuffled if m not in jogo])
@@ -51,37 +157,3 @@ def gerar_jogo_ciclo(config, analise, modo="AVANCADO", ordenar_visual=False):
             jogo.append(candidato)
 
     jogo = [int(x) for x in jogo[:total_jogo]]
-    
-    if ordenar_visual:
-        jogo = sorted(jogo)
-    
-    return jogo
-
-def fechamento_inteligente_3jogos(config, analise, ordenar_visual=False):
-    faltantes, memoria, quentes = analise["faltantes"], analise["memoria"], analise["quentes"]
-    total_jogo = config["sorteadas"]
-    jogos = []
-
-    j1 = gerar_jogo_ciclo(config, analise, "ULTRA_FOCUS", ordenar_visual)
-    jogos.append({"nome": "Fechar Ciclo", "jogo": j1, "estrategia": "100% faltantes + memoria"})
-
-    base = memoria[:config["mantidas"][1]] if len(memoria) >= config["mantidas"][0] else memoria
-    resto = [q for q in quentes if q not in base]
-    precisa = max(0, total_jogo - len(base))
-    j2 = base + random.sample(resto, min(len(resto), precisa))
-    if ordenar_visual:
-        j2 = sorted(j2)
-    jogos.append({"nome": "Memoria Pura", "jogo": j2, "estrategia": "{} mantidas + quentes".format(len(base))})
-
-    if len(faltantes) >= total_jogo:
-        j3 = random.sample(faltantes, total_jogo)
-    else:
-        j3 = faltantes.copy()
-        resto_quentes = [q for q in quentes if q not in j3]
-        precisa = total_jogo - len(j3)
-        j3.extend(random.sample(resto_quentes, min(len(resto_quentes), precisa)))
-    if ordenar_visual:
-        j3 = sorted(j3)
-    jogos.append({"nome": "Ataque Faltantes", "jogo": j3, "estrategia": "Maximo de faltantes"})
-
-    return jogos
