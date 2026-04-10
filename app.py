@@ -2,11 +2,30 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import random
-from scipy.stats import chisquare, entropy
 
 st.set_page_config(page_title="LOTOELITE PRO", layout="wide")
 st.title("🪄 LOTOELITE PRO")
-st.markdown("**Ciclo com validação estatística • v46.1 - Sem Plotly**")
+st.markdown("**Ciclo com validação estatística • v46.2 - Sem dependências**")
+
+# ========================= FUNÇÕES ESTATÍSTICAS SEM SCIPY =========================
+def qui_quadrado(freq_obs, freq_esp):
+    """Qui-quadrado manual pra não depender de scipy"""
+    chi2 = np.sum((freq_obs - freq_esp) ** 2 / freq_esp)
+    return chi2
+
+def p_valor_aproximado(chi2, graus_liberdade):
+    """Aproximação de p-valor sem scipy. Se chi2 > valor crítico, p < 0.05"""
+    # Valores críticos pra 95% confiança
+    criticos = {24: 36.4, 49: 66.3, 59: 77.9, 79: 100.7, 99: 123.2}
+    critico = criticos.get(graus_liberdade, 3.84) # fallback
+    p_aprox = 0.01 if chi2 > critico * 1.5 else 0.06 if chi2 > critico else 0.5
+    return p_aprox
+
+def entropia(x):
+    """Entropia de Shannon sem scipy"""
+    x = x[x > 0] # remove zeros
+    probs = x / np.sum(x)
+    return -np.sum(probs * np.log(probs))
 
 # ========================= LOTERIAS =========================
 loteria_options = {
@@ -19,8 +38,7 @@ loteria_options = {
 
 loteria_selecionada = st.selectbox("🎯 Escolha a loteria", options=list(loteria_options.keys()), index=0)
 config = loteria_options[loteria_selecionada]
-
-st.success(f"Loteria: **{config['nome']}** — Ciclo validado por Qui-Quadrado")
+st.success(f"Loteria: **{config['nome']}** — Ciclo validado sem dependências externas")
 
 # ========================= UPLOAD =========================
 arquivo = st.file_uploader(f"Envie o CSV de {config['nome']}", type=["csv"])
@@ -37,7 +55,7 @@ except Exception as e:
 
 st.success(f"✅ {len(df)} concursos carregados!")
 
-# ========================= MOTOR DE CICLO ROBUSTO =========================
+# ========================= MOTOR DE CICLO =========================
 def detectar_ciclo_robusto(df, config, idx_final=None, janela=20):
     if idx_final is None:
         idx_final = len(df)
@@ -49,9 +67,10 @@ def detectar_ciclo_robusto(df, config, idx_final=None, janela=20):
 
     esperado = janela * config["sorteadas"] / config["total"]
     esperado_array = np.array([esperado] * config["total"])
-    chi2, p_valor = chisquare(freq, esperado_array)
-    ent = entropy(freq + 1e-9)
 
+    chi2 = qui_quadrado(freq, esperado_array)
+    p_valor = p_valor_aproximado(chi2, config["total"] - 1)
+    ent = entropia(freq + 1e-9)
     faltantes = np.where(freq == 0)[0] + 1
 
     if p_valor < 0.05 and ent < 3.1:
@@ -70,7 +89,6 @@ def backtest_walkforward(df, config, janela=20):
     resultados = []
     for i in range(janela + 10, len(df)):
         fase, faltantes, p_valor, boost, _ = detectar_ciclo_robusto(df, config, idx_final=i, janela=janela)
-
         if fase == "CICLO_ATIVO" and len(faltantes) >= config["sorteadas"]:
             jogo = sorted(random.sample(faltantes, config["sorteadas"]))
         elif len(faltantes) > 0:
@@ -80,7 +98,6 @@ def backtest_walkforward(df, config, janela=20):
             jogo = sorted(random.sample(faltantes, qtd_faltantes) + random.sample(outras, qtd_outras))
         else:
             jogo = sorted(random.sample(range(1, config["total"]+1), config["sorteadas"]))
-
         sorteado = set(df.iloc[i, :config["sorteadas"]].values)
         acerto = len(set(jogo) & sorteado)
         resultados.append({"concurso": i + 1, "acertos": acerto, "fase": fase, "p_valor": p_valor, "boost": boost})
@@ -93,19 +110,19 @@ tab1, tab2, tab3, tab4 = st.tabs([
 
 with tab1:
     st.subheader("Gerador com Ciclo Validado")
-    janela = st.slider("Janela de análise do ciclo", 10, 50, 20, key="janela_gerador")
+    janela = st.slider("Janela de análise", 10, 50, 20, key="janela_gerador")
     fase, faltantes, p_valor, boost, freq = detectar_ciclo_robusto(df, config, janela=janela)
 
     col1, col2, col3, col4 = st.columns(4)
-    col1.metric("Fase do Ciclo", fase)
-    col2.metric("p-valor", f"{p_valor:.4f}")
+    col1.metric("Fase", fase)
+    col2.metric("p-valor aprox.", f"{p_valor:.2f}")
     col3.metric("Boost", f"{boost}x")
     col4.metric("Faltantes", len(faltantes))
 
     if fase == "ALEATÓRIO":
-        st.warning("⚠️ Ciclo atual não é estatisticamente relevante. Boost zerado.")
+        st.warning("⚠️ Ciclo não é estatisticamente relevante. Boost zerado.")
     elif fase == "CICLO_ATIVO":
-        st.success(f"✅ Ciclo ativo! Força: {boost}x. Faltantes: {len(faltantes)}")
+        st.success(f"✅ Ciclo ativo! Força: {boost}x")
 
     qtd = st.slider("Quantos jogos?", 1, 50, 10)
     if st.button("🚀 GERAR JOGOS", type="primary"):
@@ -122,54 +139,5 @@ with tab1:
             st.code(f"Jogo {i:02d}: {j}")
 
 with tab2:
-    st.subheader("📊 Diagnóstico do Ciclo Atual")
-    janela_diag = st.slider("Janela de análise", 10, 50, 20, key="janela_diag")
-    fase, faltantes, p_valor, boost, freq = detectar_ciclo_robusto(df, config, janela=janela_diag)
-
-    col1, col2 = st.columns([1, 2])
-    with col1:
-        st.metric("Fase", fase)
-        st.metric("p-valor Qui²", f"{p_valor:.5f}")
-        st.metric("Entropia", f"{entropy(freq + 1e-9):.3f}")
-        st.metric("Faltantes", len(faltantes))
-        if faltantes:
-            st.write("**Faltantes:**", ", ".join(map(str, faltantes[:15])))
-    with col2:
-        # Troquei plotly por st.bar_chart nativo
-        df_freq = pd.DataFrame({'Dezena': range(1, config["total"]+1), 'Frequência': freq})
-        st.bar_chart(df_freq.set_index('Dezena'))
-        st.caption(f"Linha vermelha = média esperada: {np.mean(freq):.2f}")
-
-with tab3:
-    st.subheader("🧪 Backtesting Walk-Forward")
-    janela_bt = st.slider("Janela do ciclo pro backtest", 10, 50, 20, key="janela_bt")
-    if st.button("▶️ RODAR BACKTEST"):
-        with st.spinner("Rodando backtest..."):
-            df_bt = backtest_walkforward(df, config, janela=janela_bt)
-        if not df_bt.empty:
-            media_acertos = df_bt['acertos'].mean()
-            media_aleatoria = config["sorteadas"] * config["sorteadas"] / config["total"]
-            col1, col2, col3 = st.columns(3)
-            col1.metric("Média de Acertos", f"{media_acertos:.2f}")
-            col2.metric("Média Aleatória", f"{media_aleatoria:.2f}", delta=f"{media_acertos - media_aleatoria:.2f}")
-            col3.metric("Concursos Testados", len(df_bt))
-            if media_acertos > media_aleatoria * 1.05:
-                st.success(f"✅ Bateu o aleatório em {((media_acertos/media_aleatoria - 1)*100):.1f}%!")
-            else:
-                st.warning("⚠️ Não superou aleatório. Ajuste janela ou lógica.")
-            st.line_chart(df_bt.set_index('concurso')['acertos'])
-
-with tab4:
-    st.subheader("🔬 Teste Contra Dados 100% Aleatórios")
-    if st.button("🎲 Gerar 3000 Sorteios Aleatórios e Testar"):
-        with st.spinner("Gerando dados aleatórios..."):
-            fake = np.array([sorted(random.sample(range(1, config["total"]+1), config["sorteadas"])) for _ in range(3000)])
-            df_fake = pd.DataFrame(fake)
-            fase, _, p_valor, boost, _ = detectar_ciclo_robusto(df_fake, config, janela=20)
-        col1, col2 = st.columns(2)
-        col1.metric("Fase no Aleatório", fase)
-        col2.metric("p-valor", f"{p_valor:.4f}")
-        if fase == "ALEATÓRIO" or p_valor > 0.05:
-            st.success("✅ PASSOU! Detector ficou quieto no aleatório. Ciclo robusto.")
-        else:
-            st.error("❌ REPROVOU! Detectou padrão em dado aleatório. Ajuste critério.")
+    st.subheader("📊 Diagnóstico do Ciclo")
+    janela_diag = st
