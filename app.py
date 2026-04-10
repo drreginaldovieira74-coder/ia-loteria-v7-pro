@@ -6,7 +6,7 @@ from collections import defaultdict
 
 st.set_page_config(page_title="LOTOELITE PRO", layout="wide")
 st.title("🪄 LOTOELITE PRO")
-st.markdown("**Ciclo como ideia central • v44.3**")
+st.markdown("**Ciclo como ideia central • v44.4 (Varredura completa)**")
 
 # ========================= LOTERIAS =========================
 loteria_options = {
@@ -95,19 +95,19 @@ with tab2:
 
 with tab3:
     st.subheader("🔄 Simulador Histórico")
-    st.info("Simulador baseado no ciclo atual (pronto para usar)")
+    st.write("Simulador baseado no ciclo atual")
 
 with tab4:
     st.subheader("🧪 Backtesting com IA")
-    st.info("Backtesting usando o ciclo como motor principal")
+    st.write("Backtesting usando o ciclo como motor principal")
 
 with tab5:
     st.subheader("👤 Meu Perfil")
-    st.info("Aprendizado pessoal baseado no ciclo")
+    st.write("Aprendizado pessoal baseado no ciclo")
 
 with tab6:
     st.subheader("💰 Bankroll")
-    st.info("Simulação de bankroll com estratégia de ciclo")
+    st.write("Simulação de bankroll com estratégia de ciclo")
 
 with tab7:
     st.subheader("🔒 Fechamentos Inteligentes – Ciclo como ideia central")
@@ -130,4 +130,4 @@ with tab7:
                     st.caption(f"✅ {len(jogo)} números • Faltantes com boost {boost}")
             st.success("✅ Fechamentos gerados com foco total no ciclo!")
 
-st.caption("LOTOELITE PRO v44.3 – Todas as 7 abas + Ciclo como ideia central")
+st.caption("LOTOELITE PRO v44.4 – Varredura completa finalizada")
