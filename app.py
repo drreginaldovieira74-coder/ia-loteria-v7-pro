@@ -3,17 +3,13 @@ def gerar_jogo_ciclo(config, analise, modo="AVANCADO"):
     total_jogo = config["sorteadas"]
     m_min, m_max = config["mantidas"]
     jogo = []
-    ordenar_final = True
 
     if modo == "ULTRA_FOCUS":
-        # Se tem exatamente o número de faltantes do jogo, não ordena pra variar
+        # Pega todas as faltantes e embaralha. Nunca ordena.
         if len(faltantes) >= total_jogo:
-            faltantes_shuffled = random.sample(faltantes, total_jogo)
-            jogo = faltantes_shuffled
-            ordenar_final = False # Não ordena no ULTRA_FOCUS
+            jogo = random.sample(faltantes, total_jogo)
         else:
-            faltantes_shuffled = random.sample(faltantes, len(faltantes))
-            jogo = faltantes_shuffled
+            jogo = random.sample(faltantes, len(faltantes))
             mem_shuffled = random.sample(memoria, len(memoria))
             jogo.extend([m for m in mem_shuffled if m not in jogo][:total_jogo - len(jogo)])
     
@@ -53,10 +49,5 @@ def gerar_jogo_ciclo(config, analise, modo="AVANCADO"):
         if candidato not in jogo: 
             jogo.append(candidato)
 
-    jogo = [int(x) for x in jogo[:total_jogo]]
-    
-    # Só ordena se não for ULTRA_FOCUS com faltantes suficientes
-    if ordenar_final:
-        jogo = sorted(jogo)
-    
-    return jogo
+    # NUNCA MAIS ORDENA - retorna embaralhado
+    return [int(x) for x in jogo[:total_jogo]]
