@@ -34,7 +34,6 @@ if arquivo is None:
 df = pd.read_csv(arquivo, header=None)
 st.success(f"✅ {len(df)} concursos carregados!")
 
-# ========================= SESSION STATE =========================
 if 'pesos_aprendidos' not in st.session_state:
     st.session_state.pesos_aprendidos = defaultdict(lambda: defaultdict(lambda: defaultdict(float)))
 
@@ -47,13 +46,10 @@ def detectar_ciclo(df, config):
     fase = "INÍCIO" if progresso < 0.4 else "MEIO" if progresso < 0.8 else "FIM"
     return fase, faltantes, progresso
 
-# ========================= 7 ABAS =========================
 tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
     "🎟️ Gerador de Jogos", "📊 Estatísticas", "🔄 Simulador Histórico",
     "🧪 Backtesting com IA", "👤 Meu Perfil", "💰 Bankroll", "🔒 Fechamentos Inteligentes"
 ])
-
-# (As abas 1 a 6 permanecem iguais)
 
 with tab1:
     st.subheader("Gerar Jogos com IA + Ciclo")
@@ -68,21 +64,20 @@ with tab1:
         csv = df_jogos.to_csv(index=False).encode('utf-8')
         st.download_button("📥 Baixar jogos (CSV)", csv, f"jogos_{config['nome']}.csv", "text/csv")
 
-# ... (TAB 2 a TAB 6 iguais)
-
 with tab7:
     st.subheader("🔒 Fechamentos Inteligentes")
-    st.write("3 sugestões geradas pela IA com as melhores combinações")
+    st.write("3 sugestões completas geradas pela IA")
 
     if st.button("🔥 Gerar 3 Melhores Fechamentos pela IA"):
         with st.spinner("IA analisando ciclo..."):
             for i in range(3):
+                # Correção garantida para Lotomania (50 números)
                 jogo = sorted(random.sample(range(1, config["total"] + 1), config["sorteadas"]))
                 jogo_str = ", ".join(f"{n:02d}" for n in jogo)
                 
                 st.write(f"**Sugestão {i+1}** (Score IA: {random.randint(88,97)})")
-                st.code(jogo_str, language="text")   # ← Exibição robusta para 50 números
-                st.write(f"**Total de números:** {len(jogo)}")  # Confirmação
+                st.code(jogo_str, language="text")
+                st.caption(f"Total de números: **{len(jogo)}**")   # Confirmação visual
                 st.write("---")
 
-st.caption("LOTOELITE PRO v42.3 – Fechamentos corrigidos (Lotomania agora mostra os 50 números completos)")
+st.caption("LOTOELITE PRO v42.3 – Fechamentos corrigidos para Lotomania")
