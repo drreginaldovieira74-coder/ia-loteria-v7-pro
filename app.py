@@ -4,7 +4,7 @@ import numpy as np
 import random
 from datetime import datetime
 from itertools import combinations
-import io
+import io, re
 
 try:
     from reportlab.lib.pagesizes import A4
@@ -14,322 +14,200 @@ try:
 except:
     PDF_AVAILABLE = False
 
-st.set_page_config(page_title="LOTOELITE PRO", layout="wide")
-st.title("LOTOELITE PRO v53")
-st.markdown("**Quadrantes 4x | Fibonacci | Heatmap | CSV Export | IA Preditor**")
+st.set_page_config(page_title="LOTOELITE PRO v54", layout="wide")
+st.title("LOTOELITE PRO v54")
+st.caption("Simulador | Alerta Ciclo | Comparador Mr.Loto | Turbo 100")
 
-loteria_options = {
-    "Lotofacil": {"nome": "Lotofacil", "total": 25, "sorteadas": 15, "mantidas": [9, 11], "ciclo_esperado": [4, 6], "fase_limites": [2, 4]},
-    "Lotomania": {"nome": "Lotomania", "total": 100, "sorteadas": 50, "mantidas": [35, 40], "ciclo_esperado": [8, 12], "fase_limites": [4, 8]},
-    "Quina": {"nome": "Quina", "total": 80, "sorteadas": 5, "mantidas": [2, 3], "ciclo_esperado": [35, 50], "fase_limites": [15, 35]},
-    "Mega-Sena": {"nome": "Mega-Sena", "total": 60, "sorteadas": 6, "mantidas": [3, 4], "ciclo_esperado": [22, 30], "fase_limites": [10, 22]}
+loterias = {
+    "Lotofacil": {"total":25,"sorteadas":15,"mantidas":[9,11],"fase_limites":[2,4]},
+    "Lotomania":{"total":100,"sorteadas":50,"mantidas":[35,40],"fase_limites":[4,8]},
+    "Quina":{"total":80,"sorteadas":5,"mantidas":[2,3],"fase_limites":[15,35]},
+    "Mega-Sena":{"total":60,"sorteadas":6,"mantidas":[3,4],"fase_limites":[10,22]}
 }
 
-if 'historico_perfil' not in st.session_state:
-    st.session_state.historico_perfil = []
+loteria = st.selectbox("Loteria", list(loterias.keys()))
+cfg = loterias[loteria]
 
-loteria = st.selectbox("Loteria", list(loteria_options.keys()))
-config = loteria_options[loteria]
+arquivo = st.file_uploader(f"CSV {loteria}", type=["csv"])
+if not arquivo: st.stop()
 
-arquivo = st.file_uploader("CSV {}".format(config['nome']), type=["csv"])
-if arquivo is None:
-    st.stop()
+df = pd.read_csv(arquivo, header=None).iloc[:,:cfg["sorteadas"]].dropna().astype(int)
 
-df = pd.read_csv(arquivo, header=None)
-df = df.iloc[:, :config["sorteadas"]].dropna().astype(int)
+def analisar(df,cfg):
+    total=cfg["total"]
+    vistas=set(); atual=[]; ciclos=[]
+    for i,row in df.iterrows():
+        nums=[int(x) for x in row if 1<=int(x)<=total]
+        atual.append(i); vistas.update(nums)
+        if len(vistas)>=total:
+            ciclos.append(len(atual)); atual=[]; vistas=set()
+    falt=sorted(set(range(1,total+1))-vistas)
+    sorteios=len(atual); lim1,lim2=cfg["fase_limites"]
+    fase="ZERADO" if sorteios==0 else "INICIO" if sorteios<=lim1 else "MEIO" if sorteios<=lim2 else "FIM"
+    progresso=len(vistas)/total
+    freq=np.bincount(df.tail(30).values.flatten(), minlength=total+1)[1:]
+    quentes=[int(x) for x in np.argsort(freq)[-25:][::-1]+1]
+    ultimo=[int(x) for x in df.iloc[-1].values]
+    memoria=list(set(df.iloc[-2].values) & vistas) if len(df)>1 else []
+    return {"fase":fase,"faltantes":falt,"memoria":memoria,"quentes":quentes,"ultimo":ultimo,"progresso":progresso,"sorteios":sorteios,"vistas":len(vistas),"total":total}
 
-def analisar_ciclo(df, config):
-    total = config["total"]
-    ciclos = []
-    vistas = set()
-    atual = []
-    for idx, row in df.iterrows():
-        nums = [int(x) for x in row.values if 1 <= int(x) <= total]
-        atual.append(idx)
-        vistas.update(nums)
-        if len(vistas) >= total:
-            ciclos.append({"dezenas": set(nums), "duracao": len(atual)})
-            atual = []
-            vistas = set()
-    faltantes = sorted(set(range(1, total+1)) - vistas)
-    sorteios = len(atual)
-    lim1, lim2 = config["fase_limites"]
-    fase = "ZERADO" if sorteios==0 else "INICIO" if sorteios<=lim1 else "MEIO" if sorteios<=lim2 else "FIM"
-    memoria = list(ciclos[-1]["dezenas"] & vistas) if ciclos else []
-    progresso = max(0.0, min(1.0, len(vistas)/total))
-    freq = np.bincount(df.tail(30).values.flatten(), minlength=total+1)[1:]
-    quentes = [int(x) for x in np.argsort(freq)[-25:][::-1] + 1 if 1 <= x <= total]
-    ultimo = [int(x) for x in df.iloc[-1].values if 1 <= int(x) <= total]
-    return {"fase": fase, "faltantes": faltantes, "memoria": memoria, "quentes": quentes, "ultimo": ultimo, "progresso": progresso, "sorteios": sorteios, "ciclos": ciclos}
+a=analisar(df,cfg)
 
-analise = analisar_ciclo(df, config)
+# Constantes Lotofacil
+MOLD={1,2,3,4,5,6,10,11,15,16,20,21,22,23,24,25}
+QUAD={"Q1":set(range(1,11)),"Q2":{11,12,13,14,15},"Q3":{16,17,18,19,20},"Q4":{21,22,23,24,25}}
+FIB={1,2,3,5,8,13,21}
+COLS={1:[1,6,11,16,21],2:[2,7,12,17,22],3:[3,8,13,18,23],4:[4,9,14,19,24],5:[5,10,15,20,25]}
 
-# Definicoes Lotofacil
-MOLDURA = {1,2,3,4,5,6,10,11,15,16,20,21,22,23,24,25}
-QUADRANTES = {
-    "Q1": {1,2,3,4,5,6,7,8,9,10},  # topo
-    "Q2": {11,12,13,14,15},         # meio-esq
-    "Q3": {16,17,18,19,20},         # meio-dir
-    "Q4": {21,22,23,24,25}          # baixo
-}
-FIBONACCI = {1,2,3,5,8,13,21}
-COLUNAS = {1:[1,6,11,16,21], 2:[2,7,12,17,22], 3:[3,8,13,18,23], 4:[4,9,14,19,24], 5:[5,10,15,20,25]}
+def score_jogo(j):
+    s=sum(j); p=len([x for x in j if x%2==0]); m=len([x for x in j if x in MOLD]); f=len([x for x in j if x in FIB]); r=len(set(j)&set(a["ultimo"]))
+    sc=0
+    if 195<=s<=215: sc+=30
+    if 7<=p<=8: sc+=20
+    if 8<=m<=11: sc+=20
+    if 3<=f<=5: sc+=15
+    if 6<=r<=9: sc+=15
+    return sc
 
-def contar_quadrantes(jogo):
-    return {q: len([n for n in jogo if n in nums]) for q, nums in QUADRANTES.items()}
-
-def aplicar_filtros_v53(jogo, filtros, analise):
-    if not filtros.get("ativo"):
-        return True
-    fase = analise["fase"]
-    
-    if filtros.get("soma", {}).get("ativo") and fase in filtros["soma"]["fases"]:
-        if not (filtros["soma"]["min"] <= sum(jogo) <= filtros["soma"]["max"]):
-            return False
-    
-    if filtros.get("pares", {}).get("ativo"):
-        p = len([x for x in jogo if x%2==0])
-        if not (filtros["pares"]["min"] <= p <= filtros["pares"]["max"]):
-            return False
-    
-    if filtros.get("moldura", {}).get("ativo"):
-        m = len([n for n in jogo if n in MOLDURA])
-        if not (filtros["moldura"]["min"] <= m <= filtros["moldura"]["max"]):
-            return False
-    
-    if filtros.get("quadrantes", {}).get("ativo"):
-        qc = contar_quadrantes(jogo)
-        for q, lim in filtros["quadrantes"]["limites"].items():
-            if not (lim[0] <= qc[q] <= lim[1]):
-                return False
-    
-    if filtros.get("fibonacci", {}).get("ativo"):
-        f = len([n for n in jogo if n in FIBONACCI])
-        if not (filtros["fibonacci"]["min"] <= f <= filtros["fibonacci"]["max"]):
-            return False
-    
-    if filtros.get("colunas", {}).get("ativo"):
-        c = len([col for col, nums in COLUNAS.items() if any(n in jogo for n in nums)])
-        if c < filtros["colunas"]["min"]:
-            return False
-    
-    if filtros.get("repetidas", {}).get("ativo"):
-        r = len(set(jogo) & set(analise["ultimo"]))
-        if not (filtros["repetidas"]["min"] <= r <= filtros["repetidas"]["max"]):
-            return False
-    
-    if filtros.get("seq", {}).get("ativo"):
-        js = sorted(jogo)
-        maxseq = 1
-        seq = 1
-        for i in range(1, len(js)):
-            if js[i] == js[i-1]+1:
-                seq += 1
-                maxseq = max(maxseq, seq)
-            else:
-                seq = 1
-        if maxseq > filtros["seq"]["max"]:
-            return False
-    
-    return True
-
-def gerar_jogo_v53(config, analise, modo, filtros):
-    falt = analise["faltantes"]
-    mem = analise["memoria"]
-    quentes = analise["quentes"]
-    total = config["sorteadas"]
-    mmin, mmax = config["mantidas"]
-    
-    for _ in range(300):
-        jogo = []
-        if modo == "ULTRA_FOCUS" and len(falt) >= total:
-            jogo = random.sample(falt, total)
+def gerar(cfg,a,modo,filtros):
+    total=cfg["sorteadas"]; falt=a["faltantes"]; mem=a["memoria"]; quentes=a["quentes"]
+    for _ in range(400):
+        jogo=[]
+        if modo=="ULTRA_FOCUS" and len(falt)>=total:
+            jogo=random.sample(falt,total)
         else:
-            qf = min(int(total*(0.65 if modo=="SUPER_FOCUS" else 0.45)), len(falt))
-            if qf>0: jogo.extend(random.sample(falt, qf))
-            mem_disp = [m for m in mem if m not in jogo]
-            qm = min(random.randint(mmin, mmax), len(mem_disp), total-len(jogo))
-            if qm>0: jogo.extend(random.sample(mem_disp, qm))
-        
+            qf=int(total*(0.7 if modo in ["SUPER_FOCUS","TURBO"] else 0.5))
+            qf=min(qf,len(falt))
+            if qf>0: jogo+=random.sample(falt,qf)
+            qm=min(random.randint(*cfg["mantidas"]),len(mem),total-len(jogo))
+            if qm>0: jogo+=random.sample([m for m in mem if m not in jogo],qm)
         for q in quentes:
-            if len(jogo) >= total: break
+            if len(jogo)>=total: break
             if q not in jogo: jogo.append(q)
-        
-        while len(jogo) < total:
-            n = random.randint(1, config["total"])
+        while len(jogo)<total:
+            n=random.randint(1,cfg["total"])
             if n not in jogo: jogo.append(n)
-        
-        jogo = jogo[:total]
-        if aplicar_filtros_v53(jogo, filtros, analise):
-            return sorted(jogo)
-    
-    return sorted(jogo)
+        jogo=sorted(jogo[:total])
+        if not filtros.get("ativo"): return jogo
+        # filtro rapido
+        if filtros.get("moldura") and not (8<=len([x for x in jogo if x in MOLD])<=11): continue
+        if filtros.get("pares") and not (7<=len([x for x in jogo if x%2==0])<=8): continue
+        return jogo
+    return sorted(random.sample(range(1,cfg["total"]+1),total))
 
-def preditor_ia(analise, config):
-    # IA simples: pontua por faltantes + quentes + baixa frequencia no ciclo
-    scores = {}
-    for n in range(1, config["total"]+1):
-        score = 0
-        if n in analise["faltantes"]: score += 50
-        if n in analise["memoria"]: score += 30
-        if n in analise["quentes"][:10]: score += 20
-        if n in FIBONACCI: score += 5
-        scores[n] = score
-    top = sorted(scores.items(), key=lambda x: x[1], reverse=True)[:config["sorteadas"]+5]
-    return [n for n,_ in top]
+tabs=st.tabs(["Gerador v54","Filtros","Quadrantes","Desdobramento","Heatmap","IA","Simulador","Comparador","Export"])
 
-tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs([
-    "Gerador v53", "Filtros PRO", "Quadrantes", "Desdobramento", "Heatmap", 
-    "IA Preditor", "Estatisticas", "Perfil", "Export"
-])
-
-with tab1:
-    c1,c2,c3,c4 = st.columns(4)
-    c1.metric("Fase", analise["fase"])
-    c2.metric("Faltantes", len(analise["faltantes"]))
-    c3.metric("Memoria", len(analise["memoria"]))
-    c4.metric("Progresso", "{:.0%}".format(analise["progresso"]))
-    st.progress(analise["progresso"])
+with tabs[0]:
+    c1,c2,c3,c4=st.columns(4)
+    c1.metric("Fase",a["fase"]); c2.metric("Faltantes",len(a["faltantes"])); c3.metric("Vistas",f"{a['vistas']}/{a['total']}"); c4.metric("Progresso",f"{a['progresso']:.0%}")
+    st.progress(a["progresso"])
+    # Alerta ciclo
+    if a["fase"]=="FIM" and a["sorteios"]>=cfg["fase_limites"][1]-1:
+        st.warning(f"ALERTA CICLO: faltam ~{cfg['fase_limites'][1]+2 - a['sorteios']} sorteios para fechar. Fase FIM = maior probabilidade.")
+    elif a["fase"]=="MEIO":
+        st.info("Ciclo em MEIO - comece a aumentar apostas.")
     
-    modo = st.select_slider("Modo", ["MODERADO","AVANCADO","SUPER_FOCUS","ULTRA_FOCUS"], value="SUPER_FOCUS")
-    qtd = st.slider("Jogos", 5, 50, 20)
+    modo=st.select_slider("Modo",["MODERADO","AVANCADO","SUPER_FOCUS","ULTRA_FOCUS","TURBO"],value="SUPER_FOCUS")
+    qtd=st.slider("Qtd jogos",5,100,20) if modo!="TURBO" else 100
     
-    if st.button("GERAR v53", type="primary"):
-        filtros = st.session_state.get("filtros_v53", {"ativo": False})
-        jogos = [gerar_jogo_v53(config, analise, modo, filtros) for _ in range(qtd)]
-        st.session_state["ultimos_jogos"] = jogos
-        
+    if st.button("GERAR",type="primary"):
+        filtros=st.session_state.get("f", {"ativo":True,"moldura":True,"pares":True})
+        jogos=[gerar(cfg,a,modo,filtros) for _ in range(qtd)]
+        if modo=="TURBO":
+            jogos=sorted(jogos, key=score_jogo, reverse=True)[:10]
+            st.success("TURBO: 100 gerados, top 10 selecionados por score")
+        st.session_state["jogos"]=jogos
         for i,j in enumerate(jogos,1):
-            q = contar_quadrantes(j) if config["nome"]=="Lotofacil" else {}
-            info = "Q1:{} Q2:{} Q3:{} Q4:{}".format(q.get("Q1",0), q.get("Q2",0), q.get("Q3",0), q.get("Q4",0)) if q else ""
-            st.code("J{:02d} {} | {}".format(i, j, info))
+            st.code(f"J{i:02d} {j} | Score:{score_jogo(j)}")
 
-with tab2:
-    st.subheader("Filtros PRO v53")
-    f = {"ativo": st.checkbox("Ativar", True)}
-    col1, col2, col3 = st.columns(3)
-    
-    with col1:
-        f["soma"] = {"ativo": True, "min": st.number_input("Soma min", 150, 250, 195), "max": st.number_input("Soma max", 150, 250, 215), "fases": ["MEIO","FIM"]}
-        f["pares"] = {"ativo": True, "min": st.slider("Pares", 5, 10, 7), "max": st.slider("Pares max", 5, 10, 8)}
-        f["repetidas"] = {"ativo": True, "min": st.slider("Rep min", 0, 10, 6), "max": st.slider("Rep max", 0, 10, 9)}
-    
-    with col2:
-        if config["nome"] == "Lotofacil":
-            f["moldura"] = {"ativo": True, "min": st.slider("Mold min", 6, 14, 8), "max": st.slider("Mold max", 6, 14, 11)}
-            f["colunas"] = {"ativo": True, "min": st.slider("Colunas", 3, 5, 4)}
-            f["fibonacci"] = {"ativo": st.checkbox("Fibonacci", True), "min": st.slider("Fib min", 2, 6, 3), "max": st.slider("Fib max", 2, 8, 5)}
-    
-    with col3:
-        f["seq"] = {"ativo": True, "max": st.slider("Max seq", 2, 4, 2)}
-        if config["nome"] == "Lotofacil":
-            f["quadrantes"] = {"ativo": st.checkbox("Quadrantes 4x", True), "limites": {
-                "Q1": (3,6), "Q2": (2,4), "Q3": (2,4), "Q4": (3,6)
-            }}
-    
-    st.session_state["filtros_v53"] = f
+with tabs[1]:
+    st.subheader("Filtros v54")
+    f={"ativo":st.checkbox("Ativar filtros",True)}
+    f["moldura"]=st.checkbox("Moldura 8-11",True)
+    f["pares"]=st.checkbox("Pares 7-8",True)
+    f["fib"]=st.checkbox("Fibonacci 3-5",True)
+    st.session_state["f"]=f
 
-with tab3:
-    st.subheader("Analise Quadrantes")
-    if config["nome"] == "Lotofacil":
-        st.write("**Q1 (1-10):** topo | **Q2 (11-15):** meio-esq | **Q3 (16-20):** meio-dir | **Q4 (21-25):** baixo")
-        st.info("Padrao vencedor: Q1=4-5, Q2=3, Q3=3, Q4=4-5 (evita desbalancear)")
-        
-        if "ultimos_jogos" in st.session_state:
-            for j in st.session_state["ultimos_jogos"][:5]:
-                q = contar_quadrantes(j)
-                st.write("Jogo {} -> Q1:{} Q2:{} Q3:{} Q4:{}".format(j, q["Q1"], q["Q2"], q["Q3"], q["Q4"]))
+with tabs[2]:
+    st.write("Q1 1-10 | Q2 11-15 | Q3 16-20 | Q4 21-25")
+    if "jogos" in st.session_state:
+        for j in st.session_state["jogos"][:3]:
+            q={k:len([n for n in j if n in v]) for k,v in QUAD.items()}
+            st.write(f"{j} -> {q}")
 
-with tab4:
-    st.subheader("Desdobramento 16-20")
-    base = st.slider("Base", 16, 20, 20)
+with tabs[3]:
+    base=st.slider("Base desdobramento",16,20,20)
     if st.button("Desdobrar"):
-        base_nums = list(dict.fromkeys(analise["faltantes"] + analise["memoria"] + analise["quentes"]))[:base]
-        jogos = []
-        if base == 20:
-            fixas = base_nums[:11]
-            for comb in combinations(base_nums[11:20], 4):
-                jogos.append(sorted(fixas + list(comb)))
-        elif base == 18:
-            for comb in combinations(range(12,18),3):
-                idx = list(range(12)) + list(comb)
-                jogos.append(sorted([base_nums[i] for i in idx]))
+        pool=list(dict.fromkeys(a["faltantes"]+a["memoria"]+a["quentes"]))[:base]
+        jogos=[]
+        if base==20:
+            fix=pool[:11]
+            for c in combinations(pool[11:],4): jogos.append(sorted(fix+list(c)))
         else:
-            for _ in range(20):
-                jogos.append(sorted(random.sample(base_nums, config["sorteadas"])))
-        
-        st.session_state["ultimos_jogos"] = jogos[:25]
-        for i,j in enumerate(jogos[:25],1):
-            st.code("J{:02d}: {}".format(i, j))
+            for _ in range(25): jogos.append(sorted(random.sample(pool,cfg["sorteadas"])))
+        st.session_state["jogos"]=jogos[:25]
+        st.success(f"{len(jogos[:25])} jogos gerados")
 
-with tab5:
-    st.subheader("Heatmap Colunas e Quadrantes")
-    if config["nome"] == "Lotofacil" and len(df) > 20:
-        ultimos_20 = df.tail(20).values.flatten()
-        col_counts = {i:0 for i in range(1,6)}
-        quad_counts = {q:0 for q in QUADRANTES.keys()}
-        
-        for n in ultimos_20:
-            n = int(n)
-            for col, nums in COLUNAS.items():
-                if n in nums: col_counts[col] += 1
-            for q, nums in QUADRANTES.items():
-                if n in nums: quad_counts[q] += 1
-        
-        c1, c2 = st.columns(2)
-        with c1:
-            st.write("**Colunas ultimos 20 concursos**")
-            st.bar_chart(pd.DataFrame(list(col_counts.items()), columns=["Coluna","Freq"]).set_index("Coluna"))
-        with c2:
-            st.write("**Quadrantes ultimos 20**")
-            st.bar_chart(pd.DataFrame(list(quad_counts.items()), columns=["Quad","Freq"]).set_index("Quad"))
+with tabs[4]:
+    if len(df)>20:
+        ult=df.tail(20).values.flatten()
+        col_counts={i:sum(1 for n in ult if n in COLS[i]) for i in COLS}
+        st.bar_chart(pd.DataFrame(col_counts.items(),columns=["Col","Freq"]).set_index("Col"))
 
-with tab6:
-    st.subheader("IA Preditor - Top Dezenas")
-    top_ia = preditor_ia(analise, config)
-    st.success("Top {} dezenas IA: {}".format(len(top_ia), top_ia))
-    st.write("Baseado em: 50% faltantes + 30% memoria + 20% quentes + Fibonacci")
-    
-    if st.button("Gerar 3 jogos IA"):
-        jogos_ia = []
-        for _ in range(3):
-            base = top_ia[:config["sorteadas"]+3]
-            jogo = sorted(random.sample(base, config["sorteadas"]))
-            jogos_ia.append(jogo)
-        for i,j in enumerate(jogos_ia,1):
-            st.code("IA {:d}: {}".format(i, j))
+with tabs[5]:
+    top=[n for n in range(1,cfg["total"]+1)]
+    top.sort(key=lambda x:(x in a["faltantes"], x in a["quentes"][:10]), reverse=True)
+    st.write("Top IA:", top[:20])
 
-with tab7:
-    st.write("**Faltantes ({}):**".format(len(analise["faltantes"])), analise["faltantes"])
-    st.write("**Memoria ({}):**".format(len(analise["memoria"])), analise["memoria"])
-    st.write("**Quentes:**", analise["quentes"][:15])
-    st.write("**Ultimo:**", analise["ultimo"])
-    st.write("**Fibonacci:**", sorted(FIBONACCI))
+with tabs[6]:
+    st.subheader("Simulador de Premiacao")
+    st.caption("Testa seus jogos contra os ultimos concursos")
+    if "jogos" not in st.session_state:
+        st.info("Gere jogos primeiro")
+    else:
+        n_test=st.slider("Ultimos concursos para testar",5,30,10)
+        historico=[set(df.iloc[-i].values) for i in range(1,n_test+1)]
+        resultados=[]
+        for jogo in st.session_state["jogos"]:
+            acertos=[len(set(jogo)&h) for h in historico]
+            resultados.append(max(acertos))
+        df_res=pd.DataFrame({"Jogo":[f"J{i+1}" for i in range(len(resultados))],"Melhor Acerto":resultados})
+        st.dataframe(df_res)
+        premiados=sum(1 for x in resultados if x>=11)
+        st.success(f"Se tivesse jogado: {premiados} jogos premiariam (11+ acertos) nos ultimos {n_test} concursos")
 
-with tab8:
-    st.subheader("Perfil")
-    if st.button("Salvar acerto"):
-        st.session_state.historico_perfil.append({"data": str(datetime.now())[:10], "fase": analise["fase"]})
-        st.success("Salvo")
+with tabs[7]:
+    st.subheader("Comparador vs Mr.Loto")
+    txt=st.text_area("Cole jogos do Mr.Loto (um por linha, ex: 01-02-03...)")
+    if st.button("Comparar") and txt:
+        jogos_ml=[]
+        for linha in txt.splitlines():
+            nums=[int(x) for x in re.findall(r'\d+',linha)][:cfg["sorteadas"]]
+            if len(nums)==cfg["sorteadas"]: jogos_ml.append(sorted(nums))
+        if "jogos" in st.session_state:
+            nossos=st.session_state["jogos"]
+            score_nosso=np.mean([score_jogo(j) for j in nossos])
+            score_ml=np.mean([score_jogo(j) for j in jogos_ml]) if jogos_ml else 0
+            c1,c2=st.columns(2)
+            c1.metric("Score Medio LotoElite",f"{score_nosso:.1f}")
+            c2.metric("Score Medio Mr.Loto",f"{score_ml:.1f}")
+            if score_nosso>score_ml:
+                st.success("LotoElite vence por filtragem superior")
+            else:
+                st.warning("Ajuste filtros")
 
-with tab9:
-    st.subheader("Exportar")
-    if "ultimos_jogos" in st.session_state:
-        jogos = st.session_state["ultimos_jogos"]
-        df_exp = pd.DataFrame(jogos)
-        csv = df_exp.to_csv(index=False, header=False).encode('utf-8')
-        st.download_button("CSV Jogos", csv, "jogos_v53.csv", "text/csv")
-        
+with tabs[8]:
+    if "jogos" in st.session_state:
+        jogos=st.session_state["jogos"]
+        csv=pd.DataFrame(jogos).to_csv(index=False,header=False).encode()
+        st.download_button("Baixar CSV",csv,"lotoelite_v54.csv","text/csv")
         if PDF_AVAILABLE:
-            buffer = io.BytesIO()
-            c = canvas.Canvas(buffer, pagesize=A4)
-            c.setFont("Helvetica-Bold", 14)
-            c.drawString(20*mm, 280*mm, "LOTOELITE v53 - {}".format(config["nome"]))
-            y = 260
+            buf=io.BytesIO(); c=canvas.Canvas(buf,pagesize=A4); c.setFont("Helvetica-Bold",12)
+            c.drawString(20*mm,280*mm,f"LOTOELITE v54 - {loteria}")
+            y=260
             for i,j in enumerate(jogos,1):
-                c.drawString(20*mm, y*mm, "J{:02d}: {}".format(i, "-".join("{:02d}".format(n) for n in j)))
-                y -= 7
-                if y < 20: c.showPage(); y = 280
-            c.save()
-            buffer.seek(0)
-            st.download_button("PDF Volante", buffer, "volante_v53.pdf", "application/pdf")
+                c.drawString(20*mm,y*mm,f"J{i:02d}: {'-'.join(f'{n:02d}' for n in j)}")
+                y-=7
+                if y<20: c.showPage(); y=280
+            c.save(); buf.seek(0)
+            st.download_button("PDF",buf,"v54.pdf","application/pdf")
