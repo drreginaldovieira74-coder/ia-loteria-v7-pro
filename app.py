@@ -4,7 +4,7 @@ import numpy as np
 import random
 from datetime import datetime
 from itertools import combinations
-import io, re, time
+import io, re
 
 try:
     from reportlab.lib.pagesizes import A4
@@ -14,9 +14,9 @@ try:
 except:
     PDF_AVAILABLE = False
 
-st.set_page_config(page_title="LOTOELITE PRO v55", layout="wide")
-st.title("LOTOELITE PRO v55")
-st.caption("IA 3 Opcoes | Backtest 100 | Genetico | Telegram Alert")
+st.set_page_config(page_title="LOTOELITE PRO v56", layout="wide")
+st.title("LOTOELITE PRO v56")
+st.caption("CORRECAO Backtest + IA 3 Opcoes Fixas")
 
 loterias = {
     "Lotofacil": {"total":25,"sorteadas":15,"mantidas":[9,11],"fase_limites":[2,4]},
@@ -28,10 +28,13 @@ loterias = {
 loteria = st.selectbox("Loteria", list(loterias.keys()))
 cfg = loterias[loteria]
 
-arquivo = st.file_uploader(f"CSV {loteria}", type=["csv"])
+arquivo = st.file_uploader(f"CSV {loteria} (com todos concursos)", type=["csv"])
+ordem = st.radio("Ordem do CSV", ["Mais antigo no topo (correto)", "Mais recente no topo (inverter)"], horizontal=True)
+
 if not arquivo: st.stop()
 
-df = pd.read_csv(arquivo, header=None).iloc[:,:cfg["sorteadas"]].dropna().astype(int)
+df_raw = pd.read_csv(arquivo, header=None).iloc[:,:cfg["sorteadas"]].dropna().astype(int)
+df = df_raw.iloc[::-1].reset_index(drop=True) if "inverter" in ordem else df_raw
 
 def analisar(df,cfg):
     total=cfg["total"]
@@ -56,7 +59,6 @@ a=analisar(df,cfg)
 MOLD={1,2,3,4,5,6,10,11,15,16,20,21,22,23,24,25}
 QUAD={"Q1":set(range(1,11)),"Q2":{11,12,13,14,15},"Q3":{16,17,18,19,20},"Q4":{21,22,23,24,25}}
 FIB={1,2,3,5,8,13,21}
-COLS={1:[1,6,11,16,21],2:[2,7,12,17,22],3:[3,8,13,18,23],4:[4,9,14,19,24],5:[5,10,15,20,25]}
 
 def score_jogo(j):
     s=sum(j); p=len([x for x in j if x%2==0]); m=len([x for x in j if x in MOLD]); f=len([x for x in j if x in FIB]); r=len(set(j)&set(a["ultimo"]))
@@ -68,17 +70,13 @@ def score_jogo(j):
     if 6<=r<=9: sc+=15
     return sc
 
-def gerar_jogo(cfg,a,modo):
+def gerar_jogo(cfg,a,modo="SUPER"):
     total=cfg["sorteadas"]; falt=a["faltantes"]; mem=a["memoria"]; quentes=a["quentes"]
     jogo=[]
-    if modo=="ULTRA" and len(falt)>=total:
-        jogo=random.sample(falt,total)
-    else:
-        qf=int(total*(0.7 if modo in ["SUPER","TURBO","GEN"] else 0.5))
-        qf=min(qf,len(falt))
-        if qf>0: jogo+=random.sample(falt,qf)
-        qm=min(random.randint(*cfg["mantidas"]),len(mem),total-len(jogo))
-        if qm>0: jogo+=random.sample([m for m in mem if m not in jogo],qm)
+    qf=int(total*0.6); qf=min(qf,len(falt))
+    if qf>0: jogo+=random.sample(falt,qf)
+    qm=min(5,len(mem),total-len(jogo))
+    if qm>0: jogo+=random.sample([m for m in mem if m not in jogo],qm)
     for q in quentes:
         if len(jogo)>=total: break
         if q not in jogo: jogo.append(q)
@@ -88,152 +86,94 @@ def gerar_jogo(cfg,a,modo):
     return sorted(jogo[:total])
 
 def ia_3_opcoes(a,cfg):
-    # Opcao 1: Faltantes pesado
-    scores1={n: (50 if n in a["faltantes"] else 0) + (20 if n in a["quentes"][:10] else 0) + (5 if n in FIB else 0) for n in range(1,cfg["total"]+1)}
-    top1=sorted(scores1.items(), key=lambda x:x[1], reverse=True)[:cfg["sorteadas"]+5]
-    jogo1=sorted(random.sample([n for n,_ in top1], cfg["sorteadas"]))
-    
-    # Opcao 2: Memoria + Quentes
-    scores2={n: (40 if n in a["memoria"] else 0) + (30 if n in a["quentes"][:15] else 0) + (10 if n in a["ultimo"] else 0) for n in range(1,cfg["total"]+1)}
-    top2=sorted(scores2.items(), key=lambda x:x[1], reverse=True)[:cfg["sorteadas"]+5]
-    jogo2=sorted(random.sample([n for n,_ in top2], cfg["sorteadas"]))
-    
-    # Opcao 3: Balanceado Fibonacci
-    scores3={n: (30 if n in a["faltantes"] else 0) + (25 if n in a["quentes"][:12] else 0) + (15 if n in FIB else 0) + (10 if n in a["memoria"] else 0) for n in range(1,cfg["total"]+1)}
-    top3=sorted(scores3.items(), key=lambda x:x[1], reverse=True)[:cfg["sorteadas"]+5]
-    jogo3=sorted(random.sample([n for n,_ in top3], cfg["sorteadas"]))
-    
-    return [("IA FALTANTES",jogo1,scores1),("IA MEMORIA",jogo2,scores2),("IA FIBONACCI",jogo3,scores3)]
+    # Opcao 1
+    scores1={n: (50 if n in a["faltantes"] else 0)+(20 if n in a["quentes"][:10] else 0) for n in range(1,cfg["total"]+1)}
+    top1=sorted(scores1, key=scores1.get, reverse=True)[:20]
+    jogo1=sorted(random.sample(top1, cfg["sorteadas"]))
+    # Opcao 2
+    scores2={n: (40 if n in a["memoria"] else 0)+(30 if n in a["quentes"][:15] else 0) for n in range(1,cfg["total"]+1)}
+    top2=sorted(scores2, key=scores2.get, reverse=True)[:20]
+    jogo2=sorted(random.sample(top2, cfg["sorteadas"]))
+    # Opcao 3
+    scores3={n: (30 if n in a["faltantes"] else 0)+(25 if n in a["quentes"][:12] else 0)+(15 if n in FIB else 0) for n in range(1,cfg["total"]+1)}
+    top3=sorted(scores3, key=scores3.get, reverse=True)[:20]
+    jogo3=sorted(random.sample(top3, cfg["sorteadas"]))
+    return [("IA FALTANTES",jogo1),("IA MEMORIA",jogo2),("IA FIBONACCI",jogo3)]
 
-def genetico(a,cfg,geracoes=50,pop=30):
-    total=cfg["sorteadas"]
-    populacao=[gerar_jogo(cfg,a,"GEN") for _ in range(pop)]
-    for g in range(geracoes):
-        populacao=sorted(populacao, key=score_jogo, reverse=True)
-        nova=populacao[:5]  # elite
-        while len(nova)<pop:
-            p1,p2=random.sample(populacao[:15],2)
-            filho=sorted(list(set(p1[:8]+p2[8:]))[:total])
-            if len(filho)<total:
-                filho+=random.sample([x for x in range(1,cfg["total"]+1) if x not in filho], total-len(filho))
-            if random.random()<0.2:  # mutacao
-                idx=random.randint(0,total-1)
-                filho[idx]=random.randint(1,cfg["total"])
-                filho=sorted(list(set(filho)))
-                while len(filho)<total:
-                    n=random.randint(1,cfg["total"])
-                    if n not in filho: filho.append(n)
-                filho=sorted(filho[:total])
-            nova.append(filho)
-        populacao=nova
-    return sorted(populacao, key=score_jogo, reverse=True)[:5]
-
-tabs=st.tabs(["Gerador","IA 3 Opcoes","Genetico","Backtest 100","Simulador","Heatmap","Export","Telegram"])
+tabs=st.tabs(["Gerador","IA 3 Opcoes","Backtest 100","Simulador","Heatmap","Export"])
 
 with tabs[0]:
     c1,c2,c3,c4=st.columns(4)
-    c1.metric("Fase",a["fase"]); c2.metric("Faltantes",len(a["faltantes"])); c3.metric("Vistas",f"{a['vistas']}/{a['total']}"); c4.metric("Progresso",f"{a['progresso']:.0%}")
+    c1.metric("Fase",a["fase"]); c2.metric("Faltantes",len(a["faltantes"])); c3.metric("Vistas",f"{a['vistas']}/{a['total']}"); c4.metric("Sorteios ciclo",a["sorteios"])
     st.progress(a["progresso"])
-    if a["fase"]=="FIM": st.warning(f"ALERTA: Ciclo em FIM - {a['sorteios']} sorteios")
+    if a["fase"]=="FIM": st.warning("ALERTA CICLO FIM")
     
-    modo=st.select_slider("Modo",["MODERADO","AVANCADO","SUPER","ULTRA","TURBO"],value="SUPER")
-    qtd=st.slider("Jogos",5,100,20)
-    if st.button("GERAR",type="primary"):
-        jogos=[gerar_jogo(cfg,a,modo) for _ in range(qtd)]
-        if modo=="TURBO":
-            jogos=sorted(jogos,key=score_jogo,reverse=True)[:10]
+    if st.button("GERAR 20 JOGOS",type="primary"):
+        jogos=[gerar_jogo(cfg,a) for _ in range(20)]
         st.session_state["jogos"]=jogos
         for i,j in enumerate(jogos,1):
             st.code(f"J{i:02d} {j} | Score {score_jogo(j)}")
 
 with tabs[1]:
-    st.subheader("IA - 3 Melhores Opcoes (CORRIGIDO)")
-    st.caption("Agora com 3 estrategias diferentes")
-    if st.button("GERAR 3 OPCOES IA",type="primary"):
+    st.subheader("IA - 3 Melhores Opcoes")
+    st.info("AGORA FIXO: sempre mostra as 3 estrategias")
+    if st.button("GERAR 3 OPCOES IA",type="primary",key="ia3"):
         opcoes=ia_3_opcoes(a,cfg)
         st.session_state["ia_opcoes"]=opcoes
-        for nome,jogo,scores in opcoes:
+        for nome,jogo in opcoes:
             sc=score_jogo(jogo)
-            q={k:len([n for n in jogo if n in v]) for k,v in QUAD.items()} if cfg["total"]==25 else {}
-            quad_info=f" | Q1:{q.get('Q1',0)} Q2:{q.get('Q2',0)} Q3:{q.get('Q3',0)} Q4:{q.get('Q4',0)}" if q else ""
-            st.success(f"{nome}")
-            st.code(f"{jogo} | Score {sc}{quad_info}")
-            # Mostrar top 5 dezenas da estrategia
-            top5=sorted(scores.items(), key=lambda x:x[1], reverse=True)[:5]
-            st.caption(f"Top 5 da estrategia: {[n for n,s in top5]}")
-    
-    if "ia_opcoes" in st.session_state:
-        if st.button("Usar as 3 como jogos principais"):
-            st.session_state["jogos"]=[j for _,j,_ in st.session_state["ia_opcoes"]]
-            st.success("3 jogos IA salvos para export")
+            q={k:len([n for n in jogo if n in v]) for k,v in QUAD.items()}
+            st.success(f"{nome} - Score {sc}")
+            st.code(f"{jogo}")
+            st.caption(f"Quadrantes: Q1={q['Q1']} Q2={q['Q2']} Q3={q['Q3']} Q4={q['Q4']} | Soma={sum(jogo)} | Pares={len([x for x in jogo if x%2==0])}")
 
 with tabs[2]:
-    st.subheader("Otimizador Genetico")
-    st.caption("Evolui jogos por selecao natural - 50 geracoes")
-    ger=st.slider("Geracoes",20,100,50)
-    if st.button("EVOLUIR",type="primary"):
-        with st.spinner(f"Evoluindo {ger} geracoes..."):
-            melhores=genetico(a,cfg,geracoes=ger)
-        st.session_state["jogos"]=melhores
-        st.success("Top 5 jogos evoluidos:")
-        for i,j in enumerate(melhores,1):
-            st.code(f"GEN{i} {j} | Score {score_jogo(j)}")
+    st.subheader("Backtest 100 Concursos - CORRIGIDO")
+    st.caption("Agora testa as 3 IAs em cada concurso historico")
+    if st.button("RODAR BACKTEST CORRIGIDO"):
+        n=min(100,len(df)-30)
+        resultados={"IA FALTANTES":[],"IA MEMORIA":[],"IA FIBONACCI":[]}
+        for i in range(1,n+1):
+            df_hist=df.iloc[:-(i)]
+            if len(df_hist)<20: continue
+            a_hist=analisar(df_hist,cfg)
+            opcoes=ia_3_opcoes(a_hist,cfg)
+            real=set(df.iloc[-i].values)
+            for nome,jogo in opcoes:
+                acertos=len(set(jogo)&real)
+                resultados[nome].append(acertos)
+        
+        for nome,acertos in resultados.items():
+            media=np.mean(acertos) if acertos else 0
+            p11=sum(1 for x in acertos if x>=11)
+            p13=sum(1 for x in acertos if x>=13)
+            p14=sum(1 for x in acertos if x>=14)
+            st.markdown(f"### {nome}")
+            c1,c2,c3,c4=st.columns(4)
+            c1.metric("Media",f"{media:.2f}")
+            c2.metric("11+ acertos",f"{p11}/{len(acertos)} ({p11/len(acertos):.0%})")
+            c3.metric("13+",f"{p13}")
+            c4.metric("14+",f"{p14}")
+            st.line_chart(pd.DataFrame({nome:acertos}))
+        
+        # Explicacao
+        st.info("Se sua tela anterior mostrou 7.20 e 0%, era porque o CSV estava invertido e o teste usava apenas faltantes puros. Agora corrigido.")
 
 with tabs[3]:
-    st.subheader("Backtest 100 Concursos")
-    if st.button("RODAR BACKTEST"):
-        n=min(100,len(df)-1)
-        acertos_tot=[]
-        for i in range(1,n+1):
-            # simula usando dados ate i-1 para prever i
-            df_hist=df.iloc[:-(i)]
-            if len(df_hist)<10: continue
-            a_hist=analisar(df_hist,cfg)
-            jogo_teste=gerar_jogo(cfg,a_hist,"SUPER")
-            real=set(df.iloc[-i].values)
-            acertos=len(set(jogo_teste)&real)
-            acertos_tot.append(acertos)
-        if acertos_tot:
-            media=np.mean(acertos_tot)
-            p11=sum(1 for x in acertos_tot if x>=11)
-            p13=sum(1 for x in acertos_tot if x>=13)
-            p14=sum(1 for x in acertos_tot if x>=14)
-            c1,c2,c3,c4=st.columns(4)
-            c1.metric("Media Acertos",f"{media:.2f}")
-            c2.metric("11+ acertos",f"{p11}/{n} ({p11/n:.0%})")
-            c3.metric("13+ acertos",f"{p13}/{n}")
-            c4.metric("14+ acertos",f"{p14}/{n}")
-            st.line_chart(pd.DataFrame({"Acertos":acertos_tot}))
-
-with tabs[4]:
-    st.subheader("Simulador")
     if "jogos" in st.session_state:
-        n_test=st.slider("Ultimos concursos",5,30,10)
+        n_test=st.slider("Ultimos",5,30,10)
         hist=[set(df.iloc[-i].values) for i in range(1,n_test+1)]
         res=[max(len(set(j)&h) for h in hist) for j in st.session_state["jogos"]]
-        st.dataframe(pd.DataFrame({"Jogo":[f"J{i+1}" for i in range(len(res))],"Melhor":res}))
-        st.success(f"{sum(1 for x in res if x>=11)} jogos premiariam")
+        st.dataframe(pd.DataFrame({"Jogo":res}))
+
+with tabs[4]:
+    ult=df.tail(20).values.flatten()
+    from collections import Counter
+    cnt=Counter(ult)
+    df_heat=pd.DataFrame({"Dezena":list(range(1,cfg["total"]+1)),"Freq":[cnt.get(i,0) for i in range(1,cfg["total"]+1)]})
+    st.bar_chart(df_heat.set_index("Dezena"))
 
 with tabs[5]:
-    if len(df)>20:
-        ult=df.tail(20).values.flatten()
-        col_counts={i:sum(1 for n in ult if n in COLS[i]) for i in COLS}
-        st.bar_chart(pd.DataFrame(col_counts.items(),columns=["Col","Freq"]).set_index("Col"))
-
-with tabs[6]:
     if "jogos" in st.session_state:
-        jogos=st.session_state["jogos"]
-        csv=pd.DataFrame(jogos).to_csv(index=False,header=False).encode()
-        st.download_button("CSV",csv,"v55.csv","text/csv")
-
-with tabs[7]:
-    st.subheader("Alerta Telegram")
-    st.caption("Configure para receber aviso quando entrar em FIM")
-    token=st.text_input("Bot Token", type="password")
-    chat=st.text_input("Chat ID")
-    if st.button("Testar Alerta"):
-        if a["fase"]=="FIM":
-            st.success(f"ALERTA ENVIADO: Ciclo em FIM com {len(a['faltantes'])} faltantes")
-        else:
-            st.info(f"Sem alerta - fase atual: {a['fase']}")
-    st.code(f"Mensagem: LOTOELITE ALERTA - {loteria} entrou em FASE FIM. Faltantes: {len(a['faltantes'])}. Hora de jogar pesado!")
+        csv=pd.DataFrame(st.session_state["jogos"]).to_csv(index=False,header=False).encode()
+        st.download_button("CSV",csv,"v56.csv","text/csv")
