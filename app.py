@@ -1,20 +1,3 @@
-
-
-Skip to content
-Using Gmail with screen readers
-Enable desktop notifications for Gmail.
-   OK  No thanks
-1 of 286
-app_v51_4.py
-Inbox
-
-Dr. Reginaldo Vieira <drreginaldovieira74@gmail.com>
-Attachments
-9:35 PM (1 minute ago)
-to me
-
- One attachment
-  •  Scanned by Gmail
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -456,5 +439,3 @@ with tab8:
             st.caption(j['estrategia'])
             st.code("{}".format(j['jogo']))
         st.success("3 jogos gerados com foco total no ciclo + memoria")
-app_v51_4.py
-Displaying app_v51_4.py.
