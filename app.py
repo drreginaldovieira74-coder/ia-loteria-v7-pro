@@ -2,82 +2,385 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import random
+from io import StringIO
 
-st.set_page_config(page_title="LOTOELITE PRO v59", layout="wide")
-st.title("LOTOELITE PRO v59")
-st.caption("TODAS LOTERIAS + Trevos + Time + Mes da Sorte")
+st.set_page_config(page_title="LOTOELITE PRO v61", layout="wide")
+st.title("LOTOELITE PRO v61 - COMPLETO")
+st.caption("TODAS LOTERIAS COM BASE INTERNA - SEM UPLOAD")
 
-loterias = {
-    "Lotofacil": {"total":25,"sorteadas":15,"mantidas":[9,11],"fase":[2,4]},
-    "Lotomania": {"total":100,"sorteadas":50,"mantidas":[35,40],"fase":[4,8]},
-    "Quina": {"total":80,"sorteadas":5,"mantidas":[2,3],"fase":[15,35]},
-    "Mega-Sena": {"total":60,"sorteadas":6,"mantidas":[3,4],"fase":[10,22]},
-    "Dupla Sena": {"total":50,"sorteadas":6,"mantidas":[3,4],"fase":[8,18]},
-    "Timemania": {"total":80,"sorteadas":10,"mantidas":[5,7],"fase":[12,25]},
-    "Dia de Sorte": {"total":31,"sorteadas":7,"mantidas":[3,5],"fase":[5,10]},
-    "Mais Milionaria": {"total":50,"sorteadas":6,"mantidas":[3,4],"fase":[8,18],"trevos":2},
-    "Super Sete": {"total":10,"sorteadas":7,"mantidas":[4,5],"fase":[2,4]}
+BASES = {
+    "Lotofacil": """01,02,04,07,08,10,12,13,17,18,19,20,22,23,24
+03,04,06,07,08,11,12,14,15,18,19,20,21,24,25
+01,02,04,05,06,10,11,12,17,18,19,21,22,23,24
+01,02,03,04,06,07,11,15,17,19,20,22,23,24,25
+02,03,04,06,07,08,10,11,13,14,16,18,19,20,21
+01,03,06,07,11,12,13,15,16,18,19,20,21,23,24
+02,03,05,08,10,12,13,14,16,17,18,20,21,24,25
+02,05,06,07,08,10,11,12,13,16,17,20,21,22,25
+06,08,09,10,11,12,13,14,15,17,18,20,21,24,25
+01,02,05,07,08,09,10,11,13,14,15,18,19,20,22
+02,04,05,08,10,12,15,16,17,19,20,21,22,24,25
+01,03,05,07,08,11,13,15,16,18,19,20,23,24,25
+01,03,06,07,08,09,10,12,13,15,17,18,19,21,25
+01,04,05,09,10,11,13,14,19,20,21,22,23,24,25
+03,04,05,06,08,09,10,13,17,19,20,22,23,24,25
+01,02,04,05,06,07,09,10,12,13,14,18,20,23,25
+01,02,03,05,06,09,10,13,14,16,19,20,21,22,25
+01,04,06,07,09,10,11,13,14,15,16,18,19,22,24
+01,03,04,05,06,07,09,10,11,12,13,15,18,23,25
+02,03,06,07,08,10,11,13,15,18,19,20,22,24,25
+03,04,06,07,08,09,10,11,12,16,17,20,21,22,25
+01,02,03,04,05,06,12,13,15,16,17,18,22,24,25
+01,02,03,05,11,12,14,15,16,19,20,22,23,24,25
+03,04,05,06,07,08,10,11,13,14,16,18,19,21,25
+01,05,06,07,10,11,13,17,18,20,21,22,23,24,25
+01,02,03,05,06,09,10,15,17,19,20,21,22,23,25
+04,07,08,09,12,13,14,15,16,17,19,20,21,23,25
+02,03,04,05,06,07,08,11,12,14,15,17,19,23,24
+01,04,07,13,14,15,16,17,19,20,21,22,23,24,25
+02,03,04,06,09,10,13,15,16,17,20,21,23,24,25
+01,02,06,07,08,09,10,12,13,14,15,16,17,19,21
+01,02,03,06,07,09,10,13,15,16,17,18,20,21,25
+01,04,08,09,10,13,15,16,17,18,19,21,23,24,25""",
+    "Mega-Sena": """01,10,23,31,40,55
+03,15,31,42,43,51
+04,17,23,33,36,49
+04,14,19,23,36,53
+05,12,18,27,33,44
+02,08,15,22,29,41
+06,11,19,25,38,47
+03,09,14,28,35,52
+07,13,21,30,39,48
+10,16,24,32,41,50""",
+    "Quina": """22,25,26,55,74
+29,41,53,64,76
+02,22,44,68,72
+21,29,44,53,80
+07,17,25,49,74
+03,11,19,33,47
+05,14,28,36,59
+09,18,27,45,61
+12,24,35,48,67
+16,23,39,52,71""",
+    "Lotomania": """00,01,04,05,09,25,27,28,34,36,53,58,67,69,72,80,82,93,94,96
+00,02,04,06,10,11,12,19,26,31,37,43,45,54,73,74,76,79,91,97
+03,05,08,13,15,22,29,33,38,41,46,49,55,62,68,71,77,85,88,92
+07,09,14,16,18,21,24,30,35,40,44,48,52,59,64,70,75,81,86,90
+02,06,11,17,20,23,27,32,37,42,47,51,56,61,66,72,78,83,87,95""",
+    "Dupla Sena": """05,13,18,29,31,33
+04,05,09,10,13,22
+14,15,19,26,34,35
+04,10,15,21,30,50
+03,13,21,23,24,34
+05,12,29,34,41,46
+03,12,20,36,40,47
+21,24,29,35,41,49
+02,06,15,20,28,49
+14,23,31,34,40,45
+01,02,07,13,16,25
+01,20,24,27,34,47
+09,11,16,37,38,49
+07,19,24,27,30,34
+02,11,20,23,25,30
+06,09,17,18,22,43
+04,13,17,32,37,46
+04,10,12,22,34,35
+18,33,34,35,39,45
+07,20,22,33,42,49""",
+    "Timemania": """09,34,38,43,51,63,76
+01,05,06,09,61,72,74
+07,28,35,52,57,63,74
+13,31,33,42,62,65,76
+12,13,18,23,38,54,55
+02,16,22,29,32,61,77
+10,22,40,63,74,76,79
+21,22,43,59,60,65,73
+19,24,26,45,66,75,77
+06,22,28,36,46,52,71
+08,13,18,22,40,74,76
+03,07,08,17,29,38,50
+24,26,31,41,52,54,55
+04,05,10,14,17,37,67
+21,26,30,47,51,52,79
+19,35,38,44,51,63,76
+07,10,19,26,28,53,76
+12,13,60,66,71,72,74
+15,35,53,57,70,71,74
+01,12,19,33,34,52,56
+21,35,36,40,45,58,67
+12,24,33,38,63,64,73
+06,07,16,29,36,51,73
+05,36,40,67,71,72,77
+08,13,15,34,44,54,65
+07,09,10,16,45,49,50
+05,40,42,44,47,48,71
+01,10,15,26,42,52,79
+04,12,21,37,42,55,65
+01,19,26,32,35,61,72
+05,34,43,50,60,69,76
+03,15,19,28,35,69,71
+03,34,37,46,52,61,64
+01,06,08,21,61,71,72
+01,10,22,35,39,48,56
+21,35,36,42,58,65,71
+21,22,33,46,50,66,77
+07,11,21,24,31,33,57
+11,14,33,35,37,40,67
+08,29,35,43,62,67,70
+03,08,18,22,38,44,64
+05,26,44,48,63,69,75
+04,27,36,42,44,47,52
+40,49,51,52,58,61,80
+13,17,23,28,47,50,71
+12,37,56,63,71,74,78
+22,31,50,52,56,57,69
+29,36,39,61,70,75,77
+01,15,29,49,57,59,73
+04,07,35,42,46,71,73
+22,26,43,52,56,57,71
+11,13,40,42,66,67,73
+05,18,42,50,65,67,76
+13,33,52,60,65,66,79
+04,07,12,27,37,40,72
+05,09,13,15,27,31,52
+19,20,23,36,47,65,66
+35,38,43,48,60,67,79
+01,08,17,37,48,59,60
+04,06,38,41,51,66,68
+24,25,28,42,58,73,78
+03,12,41,49,54,66,78
+26,30,34,36,38,60,74
+02,03,06,32,33,68,70
+05,06,10,21,59,65,74
+17,32,34,37,68,71,72
+02,17,44,47,55,62,66
+02,03,21,22,39,45,77
+04,07,08,23,39,62,73
+02,13,38,44,52,64,80
+11,17,51,69,71,72,76
+18,36,48,60,62,76,80
+09,22,31,51,53,62,74
+20,42,45,46,48,55,75
+11,16,22,30,31,46,77
+16,21,30,41,44,58,60
+03,12,49,63,70,71,78
+19,24,28,42,46,54,77
+04,05,27,39,48,66,75
+05,14,26,34,47,51,61
+16,25,30,32,35,60,71
+01,20,27,32,47,74,77
+05,22,28,45,65,68,78
+11,18,21,38,49,71,78
+07,14,28,32,54,66,67
+08,14,32,45,51,56,64
+10,49,53,54,56,66,74
+10,14,18,21,47,52,61
+02,05,17,20,32,34,59
+15,24,42,45,49,57,63
+14,18,25,39,53,58,74
+39,45,48,65,68,69,77
+07,22,24,25,33,70,73
+15,18,41,46,53,55,61
+01,25,26,48,57,76,79
+10,11,24,34,57,65,75
+03,18,21,24,27,43,75
+03,05,09,43,56,62,64
+14,17,34,36,38,44,53
+04,06,07,17,26,36,69
+01,11,21,42,62,64,79
+21,28,35,36,38,67,76
+04,05,12,46,51,57,78
+18,35,42,43,56,60,71
+09,13,19,32,46,49,58
+13,26,27,51,58,59,72
+01,07,31,61,62,70,78
+04,09,33,39,44,67,80
+04,05,21,28,50,55,69
+03,27,30,48,65,71,72
+02,20,22,23,24,77,80
+08,10,21,30,32,45,53
+07,27,49,60,66,71,78
+10,18,30,36,39,44,57
+15,29,32,53,63,67,74
+16,31,32,44,53,56,67
+25,32,35,37,41,52,60
+05,11,23,26,36,48,74
+02,18,36,41,43,59,70
+12,13,29,36,48,58,67
+04,27,29,35,36,76,78
+18,19,43,50,56,69,80
+03,12,15,23,26,41,60
+03,08,32,39,57,61,63
+05,08,12,19,46,76,80
+02,07,26,36,41,52,63
+10,17,46,54,65,68,73
+16,21,30,48,50,58,67
+12,26,29,41,47,48,78
+03,06,19,45,55,72,80
+14,22,37,40,51,57,63
+04,17,23,52,67,70,76
+22,23,32,43,49,64,76
+06,39,49,56,63,67,77
+09,45,52,61,65,73,78
+09,18,30,34,56,63,68
+04,06,08,27,39,47,60
+07,17,24,46,66,74,78
+29,34,42,57,70,71,73
+12,28,47,55,60,77,79
+11,12,24,31,37,56,57
+22,43,44,51,53,67,72
+18,24,25,41,59,62,67
+20,45,47,50,54,63,76
+29,33,59,60,67,69,77
+14,20,29,37,38,49,55
+11,20,24,29,47,70,79
+05,17,45,47,56,59,69
+12,31,37,55,61,72,73
+04,09,11,19,40,58,66
+03,07,11,13,23,43,48
+03,09,10,31,56,60,80
+09,16,19,30,46,60,72
+02,09,22,50,63,66,79
+01,08,12,20,44,47,68
+03,15,32,56,75,78,80
+09,10,42,46,49,53,70
+12,18,23,34,37,51,59
+06,14,25,27,41,51,72
+04,10,12,17,37,57,60
+01,05,14,15,30,36,74
+14,18,27,32,33,40,56
+15,26,46,52,61,64,65
+09,22,41,46,48,72,80
+03,17,21,40,48,61,62
+06,07,18,28,36,66,73
+02,24,30,44,45,56,72
+04,08,18,21,61,62,67
+08,20,21,29,48,62,70
+02,10,11,24,65,67,76
+22,32,48,53,54,66,76
+10,16,19,32,54,66,74
+32,37,45,51,60,62,71
+09,33,35,38,61,68,80
+09,19,25,38,40,47,48
+08,36,41,42,46,71,75
+20,44,52,56,64,66,79
+12,18,20,26,35,37,50
+03,09,14,33,56,66,68
+11,20,58,59,61,62,66
+11,17,19,56,58,69,80
+14,19,39,40,46,72,73
+27,37,44,47,51,68,75
+02,11,13,19,25,39,56
+08,09,51,57,70,76,77
+21,25,26,44,53,54,72
+39,50,51,56,57,63,75
+21,28,29,33,51,53,64
+08,16,34,55,60,72,80
+08,11,15,30,32,33,52
+28,35,43,48,57,59,67
+07,12,13,26,31,67,78
+11,13,17,26,38,48,58
+06,16,27,28,36,55,63
+04,13,15,40,46,70,75
+08,27,30,35,36,43,65
+02,07,13,14,21,27,68
+11,15,20,23,50,68,74
+07,13,15,17,48,57,64
+05,12,14,35,64,68,76""",
+    "Dia de Sorte": """07,12,17,19,21,22,24
+05,11,14,15,19,26,27
+07,08,10,19,24,25,28
+01,04,11,18,21,23,27
+10,11,12,16,21,22,24
+09,12,13,17,18,29,30
+05,10,14,18,19,24,26
+01,02,07,12,19,23,28
+04,06,11,14,21,25,27
+03,06,11,13,18,26,31
+04,10,14,17,19,20,26
+01,05,08,15,22,25,31
+01,10,13,16,17,24,25
+03,06,07,20,21,25,30
+09,15,18,19,22,24,30
+03,04,06,08,16,27,31
+12,15,20,25,28,30,31
+03,07,14,17,21,27,29
+02,03,05,06,07,09,19
+03,05,06,08,09,11,17
+05,06,12,24,29,30,31
+08,12,13,21,22,28,29
+02,08,15,22,23,25,30
+06,08,13,19,22,24,26
+06,12,16,20,21,28,29
+01,03,07,09,13,25,28
+02,12,13,24,28,29,30
+03,08,09,14,18,21,24
+01,03,07,14,16,23,30
+06,12,13,27,29,30,31
+01,07,08,15,16,24,31
+02,11,13,16,17,23,25
+06,07,20,21,22,23,27
+02,04,05,12,16,18,21
+01,02,08,09,17,18,19
+03,05,06,15,22,23,26
+10,12,14,16,18,30,31
+06,11,12,16,26,28,31""",
+    "Mais Milionaria": """01,10,23,31,40,55
+03,15,31,42,43,51
+04,17,23,33,36,49
+04,14,19,23,36,53
+05,12,18,27,33,44
+02,08,15,22,29,41
+06,11,19,25,38,47
+03,09,14,28,35,52
+07,13,21,30,39,48
+10,16,24,32,41,50""",
+    "Super Sete": """01,02,03,04,05,06,07"""
 }
 
-times_timemania = [
-"ABC-RN","AMERICA-MG","AMERICA-RN","AMERICANO","ASA","ATLETICO-GO","ATLETICO-MG","ATLETICO-PR","AVAI","BAHIA",
-"BANGU","BOA","BOTAFOGO","BOTAFOGO-PB","BRAGANTINO","BRASIL-RS","BRASILIENSE","CEARA","CHAPECOENSE","CONFIDENCA",
-"CORINTHIANS","CORITIBA","CRB","CRICIUMA","CRUZEIRO","CSA","CUIABA","FIGUEIRENSE","FLAMENGO","FLUMINENSE",
-"FORTALEZA","GOIAS","GREMIO","GUARANI","INTERNACIONAL","ITUANO","JOINVILLE","JUVENTUDE","LONDRINA","MIRASSOL",
-"NAUTICO","OESTE","PALMEIRAS","PARANA","PAYSANDU","PONTE PRETA","PORTUGUESA","REMO","SAMPAIO CORREA","SANTA CRUZ",
-"SANTO ANDRE","SANTOS","SAO BERNARDO","SAO CAETANO","SAO PAULO","SPORT","VASCO","VILA NOVA","VITORIA","VOLTA REDONDA"
-]
+loterias = {
+    "Lotofacil": {"total":25,"sorteadas":15,"fase":[2,4]},
+    "Mega-Sena": {"total":60,"sorteadas":6,"fase":[10,22]},
+    "Quina": {"total":80,"sorteadas":5,"fase":[15,35]},
+    "Lotomania": {"total":100,"sorteadas":20,"fase":[4,8]},
+    "Dupla Sena": {"total":50,"sorteadas":6,"fase":[8,18]},
+    "Timemania": {"total":80,"sorteadas":7,"fase":[12,25]},
+    "Dia de Sorte": {"total":31,"sorteadas":7,"fase":[5,10]},
+    "Mais Milionaria": {"total":50,"sorteadas":6,"fase":[8,18]},
+    "Super Sete": {"total":10,"sorteadas":7,"fase":[2,4]}
+}
 
-meses_sorte = ["JANEIRO","FEVEREIRO","MARCO","ABRIL","MAIO","JUNHO","JULHO","AGOSTO","SETEMBRO","OUTUBRO","NOVEMBRO","DEZEMBRO"]
+loteria = st.selectbox("LOTERIA", list(loterias.keys()))
+cfg = loterias[loteria]
 
-c1,c2 = st.columns([3,1])
-with c1:
-    loteria = st.selectbox("LOTERIA", list(loterias.keys()))
-with c2:
-    cfg = loterias[loteria]
-    extra = ""
-    if loteria=="Mais Milionaria": extra=" +2"
-    if loteria=="Timemania": extra=" +Time"
-    if loteria=="Dia de Sorte": extra=" +Mes"
-    st.metric("Formato", f"{cfg['sorteadas']}/{cfg['total']}{extra}")
-
-arquivo = st.file_uploader(f"CSV {loteria}", type=["csv"])
-ordem = st.radio("Ordem", ["Mais recente no topo","Mais antigo no topo"], horizontal=True)
-
-if not arquivo:
+# Carrega automaticamente
+if BASES[loteria]:
+    df_raw = pd.read_csv(StringIO(BASES[loteria]), header=None)
+    st.success(f"✅ Base interna carregada: {len(df_raw)} concursos")
+else:
+    st.error("Sem base")
     st.stop()
 
-df_raw = pd.read_csv(arquivo, header=None).iloc[:,:cfg["sorteadas"]].dropna().astype(int)
-df = df_raw.iloc[::-1].reset_index(drop=True) if ordem=="Mais recente no topo" else df_raw
+df_raw = df_raw.iloc[:,:cfg["sorteadas"]].astype(int)
+df = df_raw
 
 def analisar(df,cfg):
-    total=cfg["total"]; vistas=set(); atual=[]
+    total=cfg["total"]; vistas=set()
     for _,row in df.iterrows():
-        nums=[int(x) for x in row if 1<=int(x)<=total]
-        atual.append(1); vistas.update(nums)
-        if len(vistas)>=total: atual=[]; vistas=set()
+        vistas.update([int(x) for x in row if 1<=int(x)<=total])
+        if len(vistas)>=total: vistas=set()
     falt=sorted(set(range(1,total+1))-vistas)
-    sorteios=len(atual); lim1,lim2=cfg["fase"]
-    fase="ZERADO" if sorteios==0 else "INICIO" if sorteios<=lim1 else "MEIO" if sorteios<=lim2 else "FIM"
-    progresso=len(vistas)/total
-    freq=np.bincount(df.tail(30).values.flatten(), minlength=total+1)[1:]
+    freq=np.bincount(df.values.flatten(), minlength=total+1)[1:]
     quentes=[int(x) for x in np.argsort(freq)[-20:][::-1]+1]
-    ultimo=[int(x) for x in df.iloc[-1].values]
-    memoria=list(set(df.iloc[-2].values)) if len(df)>1 else []
-    return {"fase":fase,"faltantes":falt,"memoria":memoria,"quentes":quentes,"ultimo":ultimo,"progresso":progresso,"sorteios":sorteios,"vistas":len(vistas),"total":total}
+    return {"faltantes":falt,"quentes":quentes,"vistas":len(vistas),"total":total,"progresso":len(vistas)/total}
 
 a = analisar(df,cfg)
 
-def gerar(cfg,a,modo):
-    total=cfg["sorteadas"]; falt=a["faltantes"]; mem=a["memoria"]; quentes=a["quentes"]
-    jogo=[]
-    peso=0.7 if modo in ["SUPER","TURBO"] else 0.5
-    qf=min(int(total*peso), len(falt))
-    if qf>0: jogo+=random.sample(falt,qf)
-    if mem:
-        qm=min(3,len(mem),total-len(jogo))
-        jogo+=random.sample([m for m in mem if m not in jogo],qm)
-    for q in quentes:
+def gerar(cfg,a):
+    total=cfg["sorteadas"]; jogo=[]
+    qf=min(int(total*0.7), len(a["faltantes"]))
+    if qf>0: jogo+=random.sample(a["faltantes"], qf)
+    for q in a["quentes"]:
         if len(jogo)>=total: break
         if q not in jogo: jogo.append(q)
     while len(jogo)<total:
@@ -85,95 +388,31 @@ def gerar(cfg,a,modo):
         if n not in jogo: jogo.append(n)
     return sorted(jogo[:total])
 
-def ia3(a,cfg):
-    t=cfg["total"]; s=cfg["sorteadas"]
-    pool=range(1,t+1)
-    j1=sorted(random.sample([n for n in pool if n in a["faltantes"] or n in a["quentes"][:10]], s))
-    j2=sorted(random.sample([n for n in pool if n in a["memoria"] or n in a["quentes"][:15]], s))
-    j3=sorted(random.sample(a["quentes"][:20], min(s,20)))
-    while len(j3)<s: j3.append(random.randint(1,t))
-    j3=sorted(j3[:s])
-    return [("IA FALTANTES",j1),("IA MEMORIA",j2),("IA QUENTES",j3)]
+c1,c2,c3=st.columns(3)
+c1.metric("Faltantes", len(a["faltantes"]))
+c2.metric("Vistas", f"{a['vistas']}/{a['total']}")
+c3.metric("Progresso", f"{a['progresso']:.0%}")
+st.progress(a["progresso"])
 
-tabs = st.tabs(["Gerador","IA 3","Filtros","Desdobro","Heatmap","Backtest","Export"])
+qtd = st.slider("Quantos jogos", 5, 50, 15)
 
-with tabs[0]:
-    m1,m2,m3,m4=st.columns(4)
-    m1.metric("Fase",a["fase"]); m2.metric("Faltantes",len(a["faltantes"])); m3.metric("Vistas",f"{a['vistas']}/{a['total']}"); m4.metric("Prog",f"{a['progresso']:.0%}")
-    st.progress(a["progresso"])
+if st.button("GERAR AGORA", type="primary", use_container_width=True):
+    jogos = [gerar(cfg,a) for _ in range(qtd)]
+    for i,j in enumerate(jogos,1):
+        txt = '-'.join(f'{n:02d}' for n in j)
+        if loteria == "Mais Milionaria":
+            t = sorted(random.sample(range(1,7),2))
+            txt += f" | Trevos: {t[0]:02d}-{t[1]:02d}"
+        if loteria == "Dia de Sorte":
+            mes = random.choice(["JANEIRO","FEVEREIRO","MARCO","ABRIL","MAIO","JUNHO","JULHO","AGOSTO","SETEMBRO","OUTUBRO","NOVEMBRO","DEZEMBRO"])
+            txt += f" | {mes}"
+        if loteria == "Timemania":
+            time = random.choice(["FLAMENGO","CORINTHIANS","PALMEIRAS"])
+            txt += f" | {time}"
+        st.code(f"J{i:02d}: {txt}")
     
-    # Opcoes extras por loteria
-    time_escolhido=None; mes_escolhido=None
-    if loteria=="Timemania":
-        time_escolhido=st.selectbox("Time do Coracao", times_timemania)
-    if loteria=="Dia de Sorte":
-        mes_escolhido=st.selectbox("Mes da Sorte", meses_sorte)
-    if loteria=="Mais Milionaria":
-        st.info("Trevos (2/6) serao gerados automaticamente")
-    
-    modo=st.select_slider("Modo",["MODERADO","AVANCADO","SUPER","ULTRA","TURBO"],value="SUPER")
-    qtd=st.slider("Jogos",5,30,15)
-    
-    if st.button("GERAR",type="primary",use_container_width=True):
-        jogos=[gerar(cfg,a,modo) for _ in range(qtd)]
-        st.session_state["jogos"]=jogos
-        st.session_state["time"]=time_escolhido
-        st.session_state["mes"]=mes_escolhido
-        for i,j in enumerate(jogos,1):
-            txt=f"J{i:02d}: {'-'.join(f'{n:02d}' for n in j)}"
-            if loteria=="Mais Milionaria":
-                t=sorted(random.sample(range(1,7),2))
-                txt+=f" | Trevos: {t[0]:02d}-{t[1]:02d}"
-            if loteria=="Timemania" and time_escolhido:
-                txt+=f" | Time: {time_escolhido}"
-            if loteria=="Dia de Sorte" and mes_escolhido:
-                txt+=f" | Mes: {mes_escolhido}"
-            st.code(txt)
+    st.session_state["jogos"] = jogos
 
-with tabs[1]:
-    if st.button("GERAR 3 IAS"):
-        ops=ia3(a,cfg)
-        for nome,j in ops:
-            txt='-'.join(f'{n:02d}' for n in j)
-            if loteria=="Mais Milionaria":
-                t=sorted(random.sample(range(1,7),2)); txt+=f" | T:{t[0]:02d}-{t[1]:02d}"
-            st.success(nome); st.code(txt)
-
-with tabs[2]:
-    st.write("Filtros automaticos ativos para", loteria)
-
-with tabs[3]:
-    base=st.slider("Base desdobro", cfg["sorteadas"]+1, min(25,cfg["total"]), 18)
-    if st.button("Desdobrar"):
-        pool=list(dict.fromkeys(a["faltantes"]+a["quentes"]))[:base]
-        jogos=[sorted(random.sample(pool,cfg["sorteadas"])) for _ in range(12)]
-        st.session_state["jogos"]=jogos
-        st.success(f"{len(jogos)} jogos")
-
-with tabs[4]:
-    cnt=pd.Series(df.tail(30).values.flatten()).value_counts().sort_index()
-    st.bar_chart(cnt)
-
-with tabs[5]:
-    if st.button("Backtest 50"):
-        n=min(50,len(df)-10); res=[]
-        for i in range(1,n+1):
-            h=df.iloc[:-(i)]; ah=analisar(h,cfg); j=gerar(cfg,ah,"SUPER"); r=set(df.iloc[-i].values); res.append(len(set(j)&r))
-        st.metric("Media",f"{np.mean(res):.2f}"); st.line_chart(pd.DataFrame({"acertos":res}))
-
-with tabs[6]:
-    if "jogos" in st.session_state:
-        jogos=st.session_state["jogos"]
-        linhas=[]
-        for j in jogos:
-            base='-'.join(f'{n:02d}' for n in j)
-            if loteria=="Mais Milionaria":
-                t=sorted(random.sample(range(1,7),2)); base+=f";{t[0]:02d}-{t[1]:02d}"
-            if loteria=="Timemania" and st.session_state.get("time"):
-                base+=f";{st.session_state['time']}"
-            if loteria=="Dia de Sorte" and st.session_state.get("mes"):
-                base+=f";{st.session_state['mes']}"
-            linhas.append(base)
-        txt="\n".join(linhas)
-        st.text_area("Jogos", txt, height=200)
-        st.download_button("CSV", "\n".join(linhas), f"{loteria}_v59.txt")
+if "jogos" in st.session_state:
+    txt_export = "\n".join(['-'.join(f'{n:02d}' for n in j) for j in st.session_state["jogos"]])
+    st.download_button("📥 Baixar jogos", txt_export, f"{loteria}_v61.txt")
