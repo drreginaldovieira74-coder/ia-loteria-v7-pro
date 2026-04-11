@@ -6,7 +6,7 @@ from collections import defaultdict
 from datetime import datetime
 
 st.set_page_config(page_title="LOTOELITE PRO", layout="wide")
-st.title("LOTOELITE PRO v51.0")
+st.title("LOTOELITE PRO v51.1")
 st.markdown("**Ciclo por Loteria | Memoria | Filtros | Desdobramento | IA Híbrida**")
 
 loteria_options = {
@@ -227,4 +227,44 @@ def gerar_jogo_ciclo(config, analise, modo="AVANCADO", ordenar_visual=False, fil
 
         while len(jogo) < total_jogo:
             candidato = random.randint(1, config["total"])
-            if candidato not in
+            if candidato not in jogo:
+                jogo.append(candidato)
+
+        jogo = [int(x) for x in jogo[:total_jogo]]
+        
+        passou, _ = aplicar_filtros(jogo, filtros, analise["fase"])
+        if passou or not filtros.get("ativo"):
+            if ordenar_visual:
+                jogo = sorted(jogo)
+            return jogo
+        
+        tentativas += 1
+    
+    if ordenar_visual:
+        jogo = sorted(jogo)
+    return jogo
+
+def desdobramento_inteligente(config, analise, dezenas_base, garantia="14-15"):
+    from itertools import combinations
+    
+    total = config["sorteadas"]
+    faltantes = analise["faltantes"]
+    memoria = analise["memoria"]
+    
+    base_inteligente = list(set(faltantes + memoria))
+    if len(base_inteligente) < dezenas_base:
+        resto = [x for x in analise["quentes"] if x not in base_inteligente]
+        base_inteligente.extend(resto[:dezenas_base - len(base_inteligente)])
+    
+    base_inteligente = base_inteligente[:dezenas_base]
+    
+    jogos = []
+    if garantia == "14-15" and dezenas_base == 18:
+        idx_fixas = list(range(12))
+        idx_rotativas = list(range(12, 18))
+        for comb in combinations(idx_rotativas, 3):
+            jogo_idx = idx_fixas + list(comb)
+            jogos.append(sorted([base_inteligente[i] for i in jogo_idx]))
+    
+    elif garantia == "14-15" and dezenas_base == 16:
+        for comb in combinations(range(
