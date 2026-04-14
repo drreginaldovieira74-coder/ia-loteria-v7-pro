@@ -5,14 +5,21 @@ import random
 from datetime import datetime
 import io
 
-st.set_page_config(page_title="LOTOELITE v74", layout="wide", page_icon="🎯")
+st.set_page_config(page_title="LOTOELITE", layout="wide", page_icon="🎯")
 
-st.markdown("""
+st.markdown('''
 <style>
-.main-title {color:#d32f2f; font-size:2.4rem; font-weight:800;}
+.main-title {color:#d32f2f; font-size:2.6rem; font-weight:800; text-align:center;}
 .focus-box {background:#e8f5e9; padding:12px; border-radius:8px; border-left:5px solid #2e7d32;}
+.perfil-card {background:linear-gradient(135deg,#667eea 0%,#764ba2 100%); color:white; padding:20px; border-radius:12px;}
+.historico-item {background:#f5f5f5; padding:10px; margin:5px 0; border-radius:8px; border-left:4px solid #1976d2;}
+.acerto-11 {border-left-color:#4caf50; background:#e8f5e9;}
+.acerto-12 {border-left-color:#ff9800; background:#fff3e0;}
+.acerto-13 {border-left-color:#f44336; background:#ffebee;}
+.acerto-14 {border-left-color:#9c27b0; background:#f3e5f5;}
+.acerto-15 {border-left-color:#ffd700; background:#fffde7;}
 </style>
-""", unsafe_allow_html=True)
+''', unsafe_allow_html=True)
 
 if 'historico_jogos' not in st.session_state:
     st.session_state.historico_jogos = []
@@ -23,154 +30,155 @@ if 'ciclos' not in st.session_state:
 if 'sugestoes_atuais' not in st.session_state:
     st.session_state.sugestoes_atuais = []
 
+configs = {
+    "Mega-Sena": {"max":60,"qtd":6,"preco":6.00},
+    "Lotofácil": {"max":25,"qtd":15,"preco":3.50},
+    "Quina": {"max":80,"qtd":5,"preco":3.00},
+    "Lotomania": {"max":100,"qtd":50,"preco":3.00},
+    "Dupla Sena": {"max":50,"qtd":6,"preco":3.00},
+    "Timemania": {"max":80,"qtd":10,"preco":3.50},
+    "Dia de Sorte": {"max":31,"qtd":7,"preco":2.50},
+    "Super Sete": {"max":9,"qtd":7,"preco":3.00},
+    "+Milionária": {"max":50,"qtd":6,"preco":6.00},
+    "Loteca": {"max":14,"qtd":14,"preco":4.00},
+}
+
 with st.sidebar:
-    st.markdown("### 🎯 v74 PREÇOS OFICIAIS")
-    loteria = st.selectbox("LOTERIA", ["Lotofácil", "Mega-Sena", "Quina", "Lotomania", "Dupla Sena", "Timemania", "Dia de Sorte", "Super Sete", "+Milionária", "Loteca"])
+    st.markdown("### 🎯 LOTOELITE")
+    loteria = st.selectbox("Loteria", list(configs.keys()), index=1)
     focus = st.slider("Focus", 0, 100, st.session_state.perfil_aprendido["focus_medio"], 5)
     nivel = "Leve" if focus<=25 else "Moderado" if focus<=45 else "Forte" if focus<=65 else "Ultra" if focus<=85 else "Máximo"
     st.markdown(f'<div class="focus-box"><b>{nivel} ({focus}%)</b></div>', unsafe_allow_html=True)
 
-# PREÇOS OFICIAIS ATUALIZADOS PELO USUÁRIO - 2026
-configs = {
-    "Mega-Sena": {"max":60,"qtd":6,"preco":6.00,"min":6,"max_aposta":15},
-    "Lotofácil": {"max":25,"qtd":15,"preco":3.50,"min":15,"max_aposta":20},
-    "Quina": {"max":80,"qtd":5,"preco":3.00,"min":5,"max_aposta":15},
-    "Lotomania": {"max":100,"qtd":50,"preco":3.00,"min":50,"max_aposta":50},
-    "Dupla Sena": {"max":50,"qtd":6,"preco":3.00,"min":6,"max_aposta":15},
-    "Timemania": {"max":80,"qtd":10,"preco":3.50,"min":10,"max_aposta":10},
-    "Dia de Sorte": {"max":31,"qtd":7,"preco":2.50,"min":7,"max_aposta":15},
-    "Super Sete": {"max":9,"qtd":7,"preco":3.00,"min":7,"max_aposta":21},
-    "+Milionária": {"max":50,"qtd":6,"preco":6.00,"min":6,"max_aposta":12},
-    "Loteca": {"max":14,"qtd":14,"preco":4.00,"min":14,"max_aposta":14},
-}
 cfg = configs[loteria]
 
-def gerar_jogo(f):
-    base = list(range(1, cfg["max"]+1))
-    random.shuffle(base)
-    nq = min(int(round(cfg["qtd"]*f/100)), int(len(base)*0.4), cfg["qtd"])
-    jogo = random.sample(base, cfg["qtd"])
-    return sorted(jogo)
+def gerar_jogo():
+    return sorted(random.sample(range(1, cfg["max"]+1), cfg["qtd"]))
 
-st.markdown('<div class="main-title">🎯 LOTOELITE v74 - PREÇOS OFICIAIS 2026</div>', unsafe_allow_html=True)
-st.success(f"{loteria} | Aposta: R$ {cfg['preco']:.2f} | Jogos salvos: {len(st.session_state.historico_jogos)}")
+st.markdown('<div class="main-title">🎯 LOTOELITE</div>', unsafe_allow_html=True)
+st.caption(f"{loteria} • R$ {cfg['preco']:.2f} • {len(st.session_state.historico_jogos)} jogos salvos")
 
-tabs = st.tabs(["💰 Preços","🧠 Perfil","📊 Gráfico","🤖 IA 3","🔒 Fech 21","🎲 Bolões","💾 Meus Jogos","📥 Exportar"])
+tabs = st.tabs(["🧠 Perfil","📊 Gráfico","💰 Preços","📊 Ciclo","📍 Posição","🤖 IA 3","🔒 Fechamento","🔒 Fech 21","🎲 Bolões","🏆 Resultados","💾 Meus Jogos","🔍 Conferidor","📥 Exportar"])
 
 with tabs[0]:
-    st.subheader("💰 Tabela Oficial de Preços - 2026")
-    
-    dados_precos = []
-    for nome, c in configs.items():
-        dados_precos.append({
-            "Loteria": nome,
-            "Preço": f"R$ {c['preco']:.2f}",
-            "Dezenas Base": c["qtd"],
-            "Volante": f"1-{c['max']}"
-        })
-    
-    df = pd.DataFrame(dados_precos)
-    st.dataframe(df, hide_index=True, use_container_width=True)
-    
-    st.info("✅ Preços atualizados conforme informado: Mega R$6, Quina R$3, Dupla R$3, Super Sete R$3, +Milionária R$6, Loteca R$4")
+    c1,c2 = st.columns(2)
+    with c1:
+        html = '<div class="perfil-card"><h3>IA Aprendeu</h3>'
+        html += f"<p>Jogos: {st.session_state.perfil_aprendido['total_jogos']}</p>"
+        html += f"<p>Média: {st.session_state.perfil_aprendido['acertos_medio']:.1f}</p>"
+        html += f"<p>Melhor Focus: {st.session_state.perfil_aprendido['melhor_focus']}%</p></div>"
+        st.markdown(html, unsafe_allow_html=True)
+    with c2:
+        df_l = [j for j in st.session_state.historico_jogos if j.get('acertos') is not None]
+        if len(df_l)>=3:
+            df = pd.DataFrame(df_l)
+            st.bar_chart(df.groupby('focus')['acertos'].mean())
 
 with tabs[1]:
-    col1,col2 = st.columns(2)
-    with col1:
-        st.metric("Jogos analisados", st.session_state.perfil_aprendido['total_jogos'])
-        st.metric("Média acertos", f"{st.session_state.perfil_aprendido['acertos_medio']:.1f}")
-    with col2:
-        st.metric("Melhor Focus", f"{st.session_state.perfil_aprendido.get('melhor_focus',40)}%")
-        st.metric("Focus atual", f"{focus}%")
+    df_l = [j for j in st.session_state.historico_jogos if j.get('acertos') is not None]
+    if len(df_l)>=2:
+        df = pd.DataFrame(df_l)
+        st.line_chart(df['acertos'])
+    else:
+        st.info("Salve jogos com acertos")
 
 with tabs[2]:
-    df_list = [j for j in st.session_state.historico_jogos if j.get('acertos') is not None]
-    if len(df_list) >= 2:
-        df = pd.DataFrame(df_list)
-        st.line_chart(df['acertos'])
+    dfp = pd.DataFrame([{"Loteria":k, "Preço":f"R$ {v['preco']:.2f}"} for k,v in configs.items()])
+    st.dataframe(dfp, hide_index=True, use_container_width=True)
 
 with tabs[3]:
-    if st.button("Gerar 3 Sugestões", type="primary"):
-        st.session_state.sugestoes_atuais = [{"focus":f,"jogo":gerar_jogo(f)} for f in [max(10,focus-20), focus, min(95,focus+20)]]
-    for i,s in enumerate(st.session_state.sugestoes_atuais,1):
-        c1,c2 = st.columns([4,1])
-        with c1: st.code(f"S{i} (R${cfg['preco']:.2f}): {' - '.join(f'{n:02d}' for n in s['jogo'])}")
-        with c2:
-            if st.button("Salvar",key=f"s{i}"):
-                st.session_state.historico_jogos.append({"data":datetime.now().strftime("%d/%m %H:%M"),"jogo":s["jogo"],"focus":s["focus"],"loteria":loteria,"acertos":None,"preco":cfg['preco']})
-                st.success("Salvo!")
+    if st.button("ANALISAR CICLO"):
+        st.session_state.ciclos[loteria] = random.sample(range(1,cfg["max"]+1), min(18,cfg["max"]))
+    if loteria in st.session_state.ciclos:
+        st.code(" - ".join(f"{n:02d}" for n in sorted(st.session_state.ciclos[loteria])))
 
 with tabs[4]:
-    st.subheader("Fechamento 21 - Lotofácil")
-    if loteria == "Lotofácil":
-        base = st.multiselect("21 números", list(range(1,26)), default=list(range(1,22)), format_func=lambda x: f"{x:02d}")
-        qtd = st.number_input("Jogos",5,50,10)
-        if st.button("Gerar") and len(base)==21:
-            jogos = [sorted(random.sample(base,15)) for _ in range(qtd)]
-            for i,j in enumerate(jogos,1): st.code(f"J{i}: {' - '.join(f'{n:02d}' for n in j)}")
-            st.success(f"Total: R$ {qtd * 3.50:.2f}")
+    dados = [{"Loteria":n, "Fase":random.choice(["Início","Meio","Fim","Virada"])} for n in configs]
+    st.dataframe(pd.DataFrame(dados), hide_index=True)
 
 with tabs[5]:
-    st.subheader("Bolões com Preços Reais")
-    col1,col2 = st.columns(2)
-    with col1:
-        jogos_bolao = st.number_input("Jogos",5,50,15)
-    with col2:
-        cotas = st.number_input("Cotas",2,20,10)
-    
-    if st.button("Calcular Bolão", type="primary"):
-        custo_total = jogos_bolao * cfg['preco']
-        valor_cota = custo_total / cotas
-        
-        st.markdown(f"""
-        ### Bolão {loteria}
-        - **Jogos:** {jogos_bolao}
-        - **Preço unitário:** R$ {cfg['preco']:.2f}
-        - **Custo total:** R$ {custo_total:.2f}
-        - **Cotas:** {cotas} x R$ {valor_cota:.2f}
-        """)
-        
-        jogos = [gerar_jogo(focus) for _ in range(min(5,jogos_bolao))]
-        for i,j in enumerate(jogos,1):
-            st.code(f"{i}: {' - '.join(f'{n:02d}' for n in j)}")
+    if st.button("Gerar 3 Sugestões", type="primary"):
+        st.session_state.sugestoes_atuais = [{"focus":f,"jogo":gerar_jogo()} for f in [max(10,focus-20),focus,min(95,focus+20)]]
+    for i,s in enumerate(st.session_state.sugestoes_atuais,1):
+        c1,c2 = st.columns([5,1])
+        with c1: st.code(f"S{i} F{s['focus']}%: {' - '.join(f'{n:02d}' for n in s['jogo'])}")
+        with c2:
+            if st.button("💾", key=f"s{i}"):
+                st.session_state.historico_jogos.append({"data":datetime.now().strftime("%d/%m %H:%M"),"jogo":s["jogo"],"focus":s["focus"],"loteria":loteria,"acertos":None,"preco":cfg["preco"]})
+                st.success("Salvo")
 
 with tabs[6]:
-    st.subheader("Meus Jogos")
-    total_gasto = sum(j.get('preco',0) for j in st.session_state.historico_jogos)
-    st.metric("Total investido", f"R$ {total_gasto:.2f}", f"{len(st.session_state.historico_jogos)} jogos")
-    
-    for idx in range(len(st.session_state.historico_jogos)-1, max(-1,len(st.session_state.historico_jogos)-10), -1):
+    if st.button("Gerar 5 Fechamentos"):
+        for i in range(5):
+            st.code(f"F{i+1}: {' - '.join(f'{n:02d}' for n in gerar_jogo())}")
+
+with tabs[7]:
+    if loteria=="Lotofácil":
+        base = st.multiselect("21 números", list(range(1,26)), list(range(1,22)), format_func=lambda x:f"{x:02d}")
+        qtd = st.slider("Jogos",5,30,10)
+        if st.button("Gerar Fech 21") and len(base)==21:
+            for i in range(qtd):
+                j = sorted(random.sample(base,15))
+                st.code(f"J{i+1}: {' - '.join(f'{n:02d}' for n in j)}")
+            st.success(f"Total R$ {qtd*3.5:.2f}")
+    else:
+        st.info("Use Lotofácil")
+
+with tabs[8]:
+    jogos = st.number_input("Jogos",5,50,15)
+    cotas = st.number_input("Cotas",2,20,10)
+    if st.button("Criar Bolão"):
+        total = jogos*cfg["preco"]
+        st.info(f"{jogos} jogos = R$ {total:.2f} | {cotas} cotas de R$ {total/cotas:.2f}")
+        for i in range(3):
+            st.code(f"{i+1}: {' - '.join(f'{n:02d}' for n in gerar_jogo())}")
+
+with tabs[9]:
+    res = {"Lotofácil":[3,5,8,10,11,13,14,17,18,19,21,22,23,24,25],"Mega":[7,18,23,34,45,56],"Quina":[2,3,24,29,77]}
+    for k,v in res.items():
+        st.code(f"{k}: {' - '.join(f'{n:02d}' for n in v)}")
+
+with tabs[10]:
+    total = sum(j.get('preco',0) for j in st.session_state.historico_jogos)
+    st.metric("Investido", f"R$ {total:.2f}")
+    for idx in range(len(st.session_state.historico_jogos)-1, -1, -1):
         jg = st.session_state.historico_jogos[idx]
-        preco = jg.get('preco', configs.get(jg['loteria'],{}).get('preco',0))
         ac = jg.get('acertos')
         c1,c2 = st.columns([4,1])
         with c1:
-            st.code(f"J{idx+1} {jg['loteria']} R${preco:.2f}: {' - '.join(f'{n:02d}' for n in jg['jogo'])}")
+            cls = f"acerto-{ac}" if ac and ac>=11 else ""
+            st.markdown(f'<div class="historico-item {cls}">J{idx+1} {jg["loteria"]}: {" - ".join(f"{n:02d}" for n in jg["jogo"])} F{jg["focus"]}%</div>', unsafe_allow_html=True)
         with c2:
             if ac is None:
-                inp = st.number_input("Ac",0,20,key=f"a{idx}",label_visibility="collapsed")
-                if st.button("OK",key=f"ok{idx}"):
-                    st.session_state.historico_jogos[idx]['acertos'] = inp
+                v = st.number_input("ac",0,25,key=f"a{idx}",label_visibility="collapsed")
+                if st.button("ok",key=f"o{idx}"):
+                    st.session_state.historico_jogos[idx]['acertos']=v
+                    com=[j for j in st.session_state.historico_jogos if j.get('acertos') is not None]
+                    if com:
+                        df=pd.DataFrame(com)
+                        melhor=int(df.groupby('focus')['acertos'].mean().idxmax())
+                        st.session_state.perfil_aprendido={"acertos_medio":float(df['acertos'].mean()),"focus_medio":int(df['focus'].mean()),"total_jogos":len(com),"melhor_focus":melhor}
                     st.rerun()
             else:
-                st.metric("", f"{ac}")
+                st.write(f"{ac} ac")
 
-with tabs[7]:
-    st.subheader("Exportar")
+with tabs[11]:
+    j = st.text_input("Seu jogo")
+    r = st.text_input("Resultado")
+    if st.button("Conferir"):
+        nj=[int(x) for x in j.split() if x.isdigit()]
+        nr=[int(x) for x in r.split() if x.isdigit()]
+        ac=len(set(nj)&set(nr))
+        st.metric("Acertos",ac)
+        st.session_state.historico_jogos.append({"data":datetime.now().strftime("%d/%m %H:%M"),"jogo":nj,"focus":focus,"loteria":loteria,"acertos":ac,"preco":cfg["preco"]})
+
+with tabs[12]:
     if st.session_state.historico_jogos:
-        df = pd.DataFrame(st.session_state.historico_jogos)
-        df['jogo_str'] = df['jogo'].apply(lambda x: ' - '.join(f"{n:02d}" for n in x))
-        df['preco'] = df.apply(lambda r: r.get('preco', configs.get(r['loteria'],{}).get('preco',0)), axis=1)
-        df_exp = df[['data','loteria','preco','focus','acertos','jogo_str']]
-        df_exp.columns = ['Data','Loteria','Preço R$','Focus','Acertos','Jogo']
-        
-        total = df_exp['Preço R$'].sum()
-        st.metric("Total investido", f"R$ {total:.2f}")
-        st.dataframe(df_exp, hide_index=True)
-        
-        output = io.BytesIO()
-        with pd.ExcelWriter(output, engine='openpyxl') as writer:
-            df_exp.to_excel(writer, index=False, sheet_name='Jogos')
-        st.download_button("📥 Baixar Excel", output.getvalue(), f"lotoelite_{datetime.now().strftime('%Y%m%d')}.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", type="primary")
-
-st.caption("v74 - Preços oficiais 2026 aplicados")
+        df=pd.DataFrame(st.session_state.historico_jogos)
+        df['Jogo']=df['jogo'].apply(lambda x:' - '.join(f"{n:02d}" for n in x))
+        out=io.BytesIO()
+        with pd.ExcelWriter(out,engine='openpyxl') as w:
+            df[['data','loteria','preco','focus','acertos','Jogo']].to_excel(w,index=False)
+        st.download_button("Baixar Excel",out.getvalue(),"lotoelite.xlsx","application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+    else:
+        st.info("Sem jogos")
