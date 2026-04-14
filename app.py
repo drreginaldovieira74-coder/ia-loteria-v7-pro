@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import random
 from datetime import datetime
+import requests
 
 st.set_page_config(page_title="LOTOELITE", layout="wide", page_icon="🎯")
 
@@ -18,6 +19,7 @@ st.markdown("""
 .ciclo-box {background:#fff3cd; padding:8px; border-radius:6px; border-left:4px solid #ff9800; margin:6px 0;}
 .focus-box {background:#e8f5e9; padding:8px; border-radius:6px; border-left:4px solid #2e7d32;}
 .ia-box {background:#e3f2fd; padding:5px; border-radius:5px; font-size:0.75em;}
+.api-box {background:#f3e5f5; padding:8px; border-radius:6px; border-left:4px solid #9c27b0;}
 </style>
 """, unsafe_allow_html=True)
 
@@ -25,17 +27,18 @@ if 'historico' not in st.session_state: st.session_state.historico = []
 if 'perfil' not in st.session_state: st.session_state.perfil = {"focus":40}
 if 'ciclos' not in st.session_state: st.session_state.ciclos = {}
 if 'sugestoes_por_loteria' not in st.session_state: st.session_state.sugestoes_por_loteria = {}
+if 'dados_caixa' not in st.session_state: st.session_state.dados_caixa = {}
 
 configs = {
-    "Lotofácil": {"max":25,"qtd":15,"preco":3.50},
-    "Mega-Sena": {"max":60,"qtd":6,"preco":6.00},
-    "Quina": {"max":80,"qtd":5,"preco":3.00},
-    "Dupla Sena": {"max":50,"qtd":6,"preco":3.00},
-    "Timemania": {"max":80,"qtd":10,"preco":3.50},
-    "Lotomania": {"max":100,"qtd":50,"preco":3.00},
-    "Dia de Sorte": {"max":31,"qtd":7,"preco":2.50},
-    "Super Sete": {"max":9,"qtd":7,"preco":3.00},
-    "+Milionária": {"max":50,"qtd":6,"preco":6.00},
+    "Lotofácil": {"max":25,"qtd":15,"preco":3.50, "api":"lotofacil"},
+    "Mega-Sena": {"max":60,"qtd":6,"preco":6.00, "api":"megasena"},
+    "Quina": {"max":80,"qtd":5,"preco":3.00, "api":"quina"},
+    "Dupla Sena": {"max":50,"qtd":6,"preco":3.00, "api":"duplasena"},
+    "Timemania": {"max":80,"qtd":10,"preco":3.50, "api":"timemania"},
+    "Lotomania": {"max":100,"qtd":50,"preco":3.00, "api":"lotomania"},
+    "Dia de Sorte": {"max":31,"qtd":7,"preco":2.50, "api":"diadesorte"},
+    "Super Sete": {"max":9,"qtd":7,"preco":3.00, "api":"supersete"},
+    "+Milionária": {"max":50,"qtd":6,"preco":6.00, "api":"maismilionaria"},
 }
 
 with st.sidebar:
@@ -45,6 +48,27 @@ with st.sidebar:
     focus = st.slider("Focus %", 0, 100, st.session_state.perfil["focus"], 5)
     nivel = "Leve" if focus<=25 else "Moderado" if focus<=45 else "Forte" if focus<=65 else "Ultra" if focus<=85 else "Máximo"
     st.markdown(f'<div class="focus-box"><b>{nivel}</b> {focus}%</div>', unsafe_allow_html=True)
+    
+    # NOVO v79a
+    st.markdown("---")
+    st.markdown('<div class="api-box"><b>🛰️ API CAIXA v79a</b></div>', unsafe_allow_html=True)
+    if st.button("📡 Buscar Resultados", use_container_width=True):
+        with st.spinner("Conectando..."):
+            try:
+                api_nome = configs[lot]["api"]
+                url = f"https://servicebus2.caixa.gov.br/portaldeloterias/api/{api_nome}"
+                response = requests.get(url, timeout=10)
+                if response.status_code == 200:
+                    dados = response.json()
+                    st.session_state.dados_caixa[lot] = {
+                        "ultimo": dados,
+                        "atualizado": datetime.now().strftime("%H:%M:%S")
+                    }
+                    st.success("✓ Conectado!")
+                else:
+                    st.error("API indisponível")
+            except Exception as e:
+                st.error(f"Erro: {str(e)[:50]}")
 
 cfg = configs[lot]
 
@@ -71,7 +95,7 @@ def gerar(focus_pct, ciclo):
 
 st.markdown('<div class="main-title">LOTOELITE</div>', unsafe_allow_html=True)
 
-tabs = st.tabs(["📊 CICLO","🤖 IA 3","🔒 FECHAMENTO","🔒 FECH 21","📍 POSIÇÃO","📈 GRÁFICO","🎲 BOLÕES","🏆 RESULTADOS","💾 MEUS JOGOS","🔍 CONFERIDOR","🧠 PERFIL","💰 PREÇOS","📥 EXPORTAR"])
+tabs = st.tabs(["📊 CICLO","🤖 IA 3","🔒 FECHAMENTO","🔒 FECH 21","📍 POSIÇÃO","📈 GRÁFICO","🎲 BOLÕES","🏆 RESULTADOS","💾 MEUS JOGOS","🔍 CONFERIDOR","🧠 PERFIL","💰 PREÇOS","📥 EXPORTAR","🛰️ API CAIXA"])
 
 with tabs[0]:
     st.markdown('<div class="ciclo-box"><b>Analise o ciclo antes de gerar jogos</b></div>', unsafe_allow_html=True)
@@ -252,3 +276,27 @@ with tabs[12]:
         st.success(f"{len(df)} jogos prontos para exportar")
     else:
         st.info("Salve jogos primeiro nas abas IA 3 ou FECHAMENTO")
+
+# NOVA ABA v79a
+with tabs[13]:
+    st.subheader("🛰️ API CAIXA - Teste v79a")
+    st.markdown('<div class="api-box">Fase 1: Apenas leitura. Não altera seus jogos ainda.</div>', unsafe_allow_html=True)
+    
+    if lot in st.session_state.dados_caixa:
+        dados = st.session_state.dados_caixa[lot]["ultimo"]
+        atualizado = st.session_state.dados_caixa[lot]["atualizado"]
+        
+        col1,col2,col3 = st.columns(3)
+        with col1: st.metric("Concurso", dados.get("numero", "N/A"))
+        with col2: st.metric("Data", dados.get("dataApuracao", "N/A"))
+        with col3: st.metric("Atualizado", atualizado)
+        
+        dezenas = dados.get("listaDezenas", []) or dados.get("dezenas", [])
+        if dezenas:
+            st.success(f"Último sorteio {lot}:")
+            st.code(" - ".join(dezenas))
+        
+        st.json(dados)
+    else:
+        st.info(f"Clique em '📡 Buscar Resultados' na sidebar para {lot}")
+        st.caption("Isso testa a conexão sem alterar nada no sistema")
