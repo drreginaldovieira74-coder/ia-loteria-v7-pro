@@ -3,12 +3,18 @@ import pandas as pd
 import random
 from datetime import datetime
 
-st.set_page_config(page_title="LOTOELITE v78", layout="wide", page_icon="🎯")
+st.set_page_config(page_title="LOTOELITE", layout="wide", page_icon="🎯")
 
 st.markdown("""
 <style>
-.main-title {color:#d32f2f; font-size:2.4rem; font-weight:800; text-align:center; margin:0;}
-.subtitle {text-align:center; color:#666; font-size:0.85rem; margin-bottom:8px;}
+.main-title {
+    color:#d32f2f; 
+    font-size:3.5rem; 
+    font-weight:900; 
+    text-align:center; 
+    margin:10px 0 20px 0;
+    letter-spacing:2px;
+}
 .ciclo-box {background:#fff3cd; padding:8px; border-radius:6px; border-left:4px solid #ff9800; margin:6px 0;}
 .focus-box {background:#e8f5e9; padding:8px; border-radius:6px; border-left:4px solid #2e7d32;}
 .ia-box {background:#e3f2fd; padding:5px; border-radius:5px; font-size:0.75em;}
@@ -33,7 +39,7 @@ configs = {
 }
 
 with st.sidebar:
-    st.markdown("### 🎯 LOTOELITE v78")
+    st.markdown("### 🎯 LOTOELITE")
     st.markdown('<div class="ia-box">🧠 CICLOS + IA</div>', unsafe_allow_html=True)
     lot = st.selectbox("Loteria", list(configs.keys()))
     focus = st.slider("Focus %", 0, 100, st.session_state.perfil["focus"], 5)
@@ -63,8 +69,7 @@ def gerar(focus_pct, ciclo):
         if n not in jogo: jogo.append(n)
     return sorted(jogo[:qtd])
 
-st.markdown('<div class="main-title">🎯 LOTOELITE v78</div>', unsafe_allow_html=True)
-st.markdown('<div class="subtitle">Sistema de Ciclos • Memória por Loteria • Estável</div>', unsafe_allow_html=True)
+st.markdown('<div class="main-title">LOTOELITE</div>', unsafe_allow_html=True)
 
 tabs = st.tabs(["📊 CICLO","🤖 IA 3","🔒 FECHAMENTO","🔒 FECH 21","📍 POSIÇÃO","📈 GRÁFICO","🎲 BOLÕES","🏆 RESULTADOS","💾 MEUS JOGOS","🔍 CONFERIDOR","🧠 PERFIL","💰 PREÇOS","📥 EXPORTAR"])
 
@@ -105,7 +110,7 @@ with tabs[1]:
         st.rerun()
     
     if sug_atuais:
-        st.caption(f"Jogos salvos para {lot} (permanecem até gerar novamente)")
+        st.caption(f"Jogos salvos para {lot}")
         for i,s in enumerate(sug_atuais,1):
             c1,c2 = st.columns([5,1])
             with c1: st.code(f"S{i} F{s['f']}% ({s['nq']}Q): {'-'.join(f'{n:02d}' for n in s['j'])}")
@@ -243,7 +248,7 @@ with tabs[12]:
         df = pd.DataFrame(st.session_state.historico)
         df["Jogo"] = df["j"].apply(lambda x: "-".join(f"{n:02d}" for n in x))
         csv = df[["data","lot","f","p","Jogo"]].to_csv(index=False).encode('utf-8')
-        st.download_button("📥 Baixar CSV (abre no Excel)", csv, "lotoelite_v78.csv", "text/csv", use_container_width=True)
+        st.download_button("📥 Baixar CSV (abre no Excel)", csv, "lotoelite.csv", "text/csv", use_container_width=True)
         st.success(f"{len(df)} jogos prontos para exportar")
     else:
         st.info("Salve jogos primeiro nas abas IA 3 ou FECHAMENTO")
