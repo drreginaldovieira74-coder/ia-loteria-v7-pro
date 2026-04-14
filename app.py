@@ -3,10 +3,10 @@ import pandas as pd
 from collections import Counter
 import random
 
-st.set_page_config(page_title="LOTOELITE v67.8", layout="wide")
+st.set_page_config(page_title="LOTOELITE v67.9", layout="wide")
 
-# FORÇAR VERSÃO VISÍVEL
-st.sidebar.error("🔴 v67.8 ATIVA")
+# VERSAO VISIVEL
+st.sidebar.markdown("### 🔴 v67.9 FOCUS")
 
 CICLOS = {
     "Lotofácil": {"t":25,"s":15,"c1":4,"c2":6,"m1":9,"m2":11},
@@ -28,37 +28,25 @@ DADOS = {
 'diadesorte': [[2,8,14,19,23,27,31],[3,9,15,20,24,28,30]],
 }
 
-st.title("🎯 LOTOELITE v67.8 - FOCUS")
-st.caption("VERSÃO NOVA - Se você vê v67.4, não atualizou")
+st.title("🎯 LOTOELITE v67.9 - FOCUS")
+st.error("SE VOCE VE v67.4, O GITHUB NAO ATUALIZOU!")
 
 lot = st.sidebar.selectbox("LOTERIA", list(CICLOS.keys()))
 c = CICLOS[lot]
 k = {"Lotofácil":"lotofacil","Lotomania":"lotomania","Mega-Sena":"megasena","Quina":"quina","Dupla Sena":"duplasena","Timemania":"timemania","Dia de Sorte":"diadesorte"}[lot]
 
-# FOCUS - AGORA BEM VISÍVEL
+# FOCUS
 st.sidebar.divider()
-st.sidebar.subheader("🎯 FOCUS AJUSTÁVEL")
-focus = st.sidebar.select_slider(
-    "Intensidade",
-    options=["Leve","Moderado","Forte","Ultra","Máximo"],
-    value="Moderado"
-)
+focus = st.sidebar.select_slider("🎯 FOCUS", options=["Leve","Moderado","Forte","Ultra","Máximo"], value="Moderado")
 fc = {"Leve":0.3,"Moderado":0.5,"Forte":0.7,"Ultra":0.85,"Máximo":0.95}[focus]
-
-st.sidebar.markdown(f"""
-<div style='background:#FF6B6B30;padding:10px;border-radius:5px;text-align:center'>
-<b>FOCUS: {focus.upper()}</b><br>
-<small>{fc*100:.0f}% faltantes</small>
-</div>
-""", unsafe_allow_html=True)
+st.sidebar.success(f"Focus: {focus} ({int(fc*100)}%)")
 
 st.sidebar.write(f"{lot} | Ciclo {c['c1']}-{c['c2']}")
 
-dados = DADOS.get(k, [[1,2,3]])
+dados = DADOS[k]
 if 'a' not in st.session_state: st.session_state.a = {}
 
-# MOSTRAR QUE É VERSÃO NOVA
-st.success(f"✅ v67.8 carregada! Focus atual: **{focus}** ({fc*100:.0f}% faltantes)")
+st.info(f"✅ Versão 67.9 ativa | Focus: {focus}")
 
 t1,t2,t3,t4 = st.tabs(["🔄 CICLO","📊 Resultados","🎯 Previsão","🤖 IA"])
 
@@ -66,58 +54,38 @@ with t1:
     st.header(f"Ciclo - {lot}")
     c1,c2,c3 = st.columns(3)
     with c1:
-        ciclo = st.slider("Janela", c['c1'], c['c2'], (c['c1']+c['c2'])//2, key=f"s{k}")
+        ciclo = st.slider("Janela", c['c1'], c['c2'], 5, key=f"s{k}")
         if st.button("ANALISAR", type="primary", key=f"b{k}", use_container_width=True):
-            ult = dados[-min(ciclo,len(dados)):]
+            ult = dados[-ciclo:]
             todas = [n for j in ult for n in j]
             f = Counter(todas)
             st.session_state.a[k] = {'u':len(f),'f':[n for n in range(1,c['t']+1) if n not in f],'m':[n for n,v in f.items() if v>=2],'c':len(f)/c['t']*100}
-            st.success(f"Analisado com Focus {focus}!")
     with c2:
         an = st.session_state.a.get(k,{})
-        if an:
-            st.metric("Cobertura", f"{an.get('u',0)}/{c['t']}", f"{an.get('c',0):.1f}%")
-            st.progress(min(an.get('c',0)/100,1.0))
+        if an: 
+            st.metric("Cobertura", f"{an.get('u',0)}/{c['t']}")
+            st.progress(an.get('c',0)/100)
     with c3:
         an = st.session_state.a.get(k,{})
         if an:
-            st.metric("Mantidas", len(an.get('m',[])))
             st.metric("Faltam", len(an.get('f',[])))
 
 with t2:
-    st.header("Resultados")
     df = pd.DataFrame(dados[-10:][::-1])
-    if not df.empty:
-        df.columns=[f'D{i+1}' for i in range(len(df.columns))]
-        st.dataframe(df, use_container_width=True)
+    st.dataframe(df, use_container_width=True)
 
 with t3:
-    st.header(f"Previsão - Focus {focus}")
+    st.subheader(f"Previsão com Focus {focus}")
     an = st.session_state.a.get(k,{})
-    st.info(f"Usando {fc*100:.0f}% de dezenas faltantes (Focus {focus})")
-    if an and an.get('m'):
-        c1,c2 = st.columns(2)
-        with c1:
-            st.subheader("Jogo 1")
-            n_f = int(c['s'] * fc)
-            base = an.get('f',[])[:n_f] + an.get('m',[])[:c['s']-n_f]
-            while len(base) < c['s']: base.append(random.randint(1,c['t']))
-            j = sorted(list(dict.fromkeys(base))[:c['s']])
-            st.code(" ".join(f"{n:02d}" for n in j))
-            st.caption(f"{n_f} faltantes + {c['s']-n_f} mantidas")
-        with c2:
-            st.subheader("Jogo 2")
-            j2 = sorted(random.sample(range(1,c['t']+1), c['s']))
-            st.code(" ".join(f"{n:02d}" for n in j2))
-    else:
-        st.warning("Analise primeiro")
+    if an:
+        n_f = int(c['s'] * fc)
+        base = an.get('f',[])[:n_f] + an.get('m',[])[:c['s']-n_f]
+        while len(base) < c['s']: base.append(random.randint(1,c['t']))
+        jogo = sorted(set(base))[:c['s']]
+        st.code(" ".join(f"{x:02d}" for x in jogo))
+        st.caption(f"{n_f} faltantes + {c['s']-n_f} mantidas")
 
 with t4:
-    st.header(f"IA - Focus {focus}")
-    for i,n in enumerate(["Fechamento","Manutenção","Virada"]):
-        if st.button(n, key=f"ia{k}{i}", use_container_width=True):
-            j = sorted(random.sample(range(1,c['t']+1), c['s']))
-            st.success(" ".join(f"{n:02d}" for n in j) + f" | Focus {focus}")
-
-st.sidebar.divider()
-st.sidebar.warning(f"v67.8 • {focus}")
+    if st.button("Gerar IA"):
+        jogo = sorted(random.sample(range(1,c['t']+1), c['s']))
+        st.success(" ".join(f"{x:02d}" for x in jogo))
