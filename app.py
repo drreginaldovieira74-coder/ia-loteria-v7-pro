@@ -23,6 +23,18 @@ if 'sugestoes_por_loteria' not in st.session_state: st.session_state.sugestoes_p
 if 'dados_caixa' not in st.session_state: st.session_state.dados_caixa = {}
 if 'ao_vivo' not in st.session_state: st.session_state.ao_vivo = []
 
+ciclos_ideais = {
+    "Lotofácil": (4,6),
+    "Mega-Sena": (9,11),
+    "Quina": (14,18),
+    "Dupla Sena": (8,10),
+    "Timemania": (12,15),
+    "Lotomania": (8,12),
+    "Dia de Sorte": (4,5),
+    "Super Sete": (3,4),
+    "+Milionária": (9,12),
+}
+
 configs = {
     "Lotofácil": {"max":25,"qtd":15,"preco":3.50, "api":"lotofacil"},
     "Mega-Sena": {"max":60,"qtd":6,"preco":6.00, "api":"megasena"},
@@ -37,7 +49,7 @@ configs = {
 
 with st.sidebar:
     st.markdown("### 🎯 LOTOELITE")
-    st.markdown('<div class="ia-box">🧠 v79e AO VIVO</div>', unsafe_allow_html=True)
+    st.markdown('<div class="ia-box">🧠 v79f CICLO+</div>', unsafe_allow_html=True)
     lot = st.selectbox("Loteria", list(configs.keys()))
     focus = st.slider("Focus %", 0, 100, st.session_state.perfil["focus"], 5)
     st.session_state.perfil["focus"] = focus
@@ -52,30 +64,36 @@ def buscar_ciclo_real(loteria):
         base = f"https://servicebus2.caixa.gov.br/portaldeloterias/api/{api_nome}"
         latest = requests.get(base, timeout=10).json()
         num_atual = latest.get("numero", 0) or latest.get("numeroDoConcurso",0)
-        freq = {i:0 for i in range(1, max_n+1)}; buscados = 0
+        freq = {i:0 for i in range(1, max_n+1)}; buscados = 0; draws=[]
         for i in range(num_atual, max(num_atual-80, 0), -1):
             try:
                 r = requests.get(f"{base}/{i}", timeout=3)
                 if r.status_code != 200: continue
                 d = r.json(); dezenas = d.get("listaDezenas") or d.get("dezenas") or []
+                nums=[]
                 for dz in dezenas:
                     try:
                         n=int(dz)
                         if 1 <= n <= max_n:
-                            freq[n]+=1
+                            freq[n]+=1; nums.append(n)
                     except: pass
+                if nums: draws.append(nums)
                 buscados+=1
                 if buscados>=80: break
             except: continue
+        seen=set(); ciclo_atual=0
+        for dr in draws:
+            seen.update(dr); ciclo_atual+=1
+            if len(seen)>=max_n: break
         ordenados = sorted(freq.items(), key=lambda x: x[1], reverse=True)
         q_q=int(max_n*0.35); q_f=int(max_n*0.3)
         quentes=sorted([n for n,_ in ordenados[:q_q]]); frios=sorted([n for n,_ in ordenados[-q_f:]])
         neutros=sorted([n for n in range(1,max_n+1) if n not in quentes and n not in frios])
-        return {"q":quentes,"f":frios,"n":neutros,"fase":"REAL","h":f"{buscados} concursos","freq":freq,"atualizado":datetime.now().strftime("%H:%M")}
+        return {"q":quentes,"f":frios,"n":neutros,"fase":"REAL","h":f"{buscados} concursos","freq":freq,"atualizado":datetime.now().strftime("%H:%M"),"ciclo_atual":ciclo_atual}
     except:
         max_n=configs[loteria]["max"]; quentes=sorted(random.sample(range(1,max_n+1), int(max_n*0.35)))
         resto=[x for x in range(1,max_n+1) if x not in quentes]; frios=sorted(random.sample(resto, int(max_n*0.3)))
-        neutros=sorted([x for x in resto if x not in frios]); return {"q":quentes,"f":frios,"n":neutros,"fase":"OFFLINE","h":"Random","freq":{}}
+        neutros=sorted([x for x in resto if x not in frios]); return {"q":quentes,"f":frios,"n":neutros,"fase":"OFFLINE","h":"Random","freq":{},"ciclo_atual":0}
 
 def gerar(focus_pct, ciclo):
     qtd=cfg["qtd"]; nq=int(qtd*focus_pct/100); jogo=[]
@@ -123,6 +141,12 @@ with tabs[0]:
     if lot in st.session_state.ciclos:
         c=st.session_state.ciclos[lot]
         with col2: st.metric("Base",c["fase"],c["h"]); st.caption(f"Atualizado {c.get('atualizado','')}")
+        ideal = ciclos_ideais.get(lot,(0,0)); ca = c.get("ciclo_atual",0)
+        if ca>0 and ideal[1]>0:
+            if ca < ideal[0]: status="🟢 Início"; dica="Priorize FRIOS"
+            elif ca <= ideal[1]: status="🟡 Meio"; dica="Equilibre quentes/neutros"
+            else: status="🔴 Fim"; dica="Priorize QUENTES"
+            st.info(f"**Ciclo atual: {ca} concursos** | Ideal: {ideal[0]}-{ideal[1]} | {status} → {dica}")
         c1,c2,c3=st.columns(3)
         with c1: st.markdown("**🔥 QUENTES**"); st.code(" ".join(f"{n:02d}" for n in c["q"]))
         with c2: st.markdown("**❄️ FRIOS**"); st.code(" ".join(f"{n:02d}" for n in c["f"]))
@@ -239,9 +263,9 @@ with tabs[12]:
 
 with tabs[13]:
     st.subheader("🔴 AO VIVO - Loterias Caixa")
-    st.caption("Dados oficiais em tempo real direto da Caixa. Não precisa login.")
+    st.caption("Dados oficiais em tempo real direto da Caixa.")
     if st.button("🔄 Atualizar agora", type="primary"):
-        with st.spinner("Buscando todas as loterias..."): st.session_state.ao_vivo = buscar_ao_vivo()
+        with st.spinner("Buscando..."): st.session_state.ao_vivo = buscar_ao_vivo()
     if not st.session_state.ao_vivo: st.session_state.ao_vivo = buscar_ao_vivo()
     
     acumuladas = [x for x in st.session_state.ao_vivo if x["acumulado_bool"]]
