@@ -49,7 +49,7 @@ configs = {
 
 with st.sidebar:
     st.markdown("### 🎯 LOTOELITE")
-    st.markdown('<div class="ia-box">🧠 v79f CICLO+</div>', unsafe_allow_html=True)
+    st.markdown('<div class="ia-box">🧠 v79g IA CICLO</div>', unsafe_allow_html=True)
     lot = st.selectbox("Loteria", list(configs.keys()))
     focus = st.slider("Focus %", 0, 100, st.session_state.perfil["focus"], 5)
     st.session_state.perfil["focus"] = focus
@@ -157,8 +157,24 @@ with tabs[1]:
     if lot not in st.session_state.ciclos: st.error("Atualize ciclo"); st.stop()
     ciclo=st.session_state.ciclos[lot]
     if st.button("🎯 Gerar 3 Jogos REAIS", type="primary"):
+        # ajusta automaticamente pelo ciclo
+        ca = ciclo.get("ciclo_atual",0)
+        ideal = ciclos_ideais.get(lot,(0,0))
+        if ca>0 and ideal[1]>0:
+            if ca < ideal[0]:  # início - prioriza frios
+                focos = [max(10,focus-20), max(10,focus-10), focus]
+                modo = "Início de ciclo → mais frios"
+            elif ca > ideal[1]:  # fim - prioriza quentes
+                focos = [focus, min(95,focus+10), min(95,focus+20)]
+                modo = "Fim de ciclo → mais quentes"
+            else:  # meio
+                focos = [max(10,focus-15), focus, min(95,focus+15)]
+                modo = "Meio de ciclo → equilibrado"
+        else:
+            focos = [max(10,focus-15), focus, min(95,focus+15)]; modo = "Ciclo padrão"
+        st.caption(f"IA ajustada: {modo}")
         novas=[]
-        for f in [max(10,focus-15), focus, min(95,focus+15)]:
+        for f in focos:
             jogo=gerar(f,ciclo); nq=len(set(jogo)&set(ciclo["q"])); novas.append({"f":f,"j":jogo,"nq":nq})
         st.session_state.sugestoes_por_loteria[lot]=novas
     for i,s in enumerate(st.session_state.sugestoes_por_loteria.get(lot,[]),1):
