@@ -4,7 +4,7 @@ import random
 from datetime import datetime
 import requests
 
-st.set_page_config(page_title="LOTOELITE", layout="wide", page_icon="🎯")
+st.set_page_config(page_title="LOTOELITE v80a", layout="wide", page_icon="🎯")
 
 st.markdown("""
 <style>
@@ -49,7 +49,7 @@ configs = {
 
 with st.sidebar:
     st.markdown("### 🎯 LOTOELITE")
-    st.markdown('<div class="ia-box">🧠 v79g IA CICLO</div>', unsafe_allow_html=True)
+    st.markdown('<div class="ia-box">🧠 v80a ALERTA</div>', unsafe_allow_html=True)
     lot = st.selectbox("Loteria", list(configs.keys()))
     focus = st.slider("Focus %", 0, 100, st.session_state.perfil["focus"], 5)
     st.session_state.perfil["focus"] = focus
@@ -147,6 +147,13 @@ with tabs[0]:
             elif ca <= ideal[1]: status="🟡 Meio"; dica="Equilibre quentes/neutros"
             else: status="🔴 Fim"; dica="Priorize QUENTES"
             st.info(f"**Ciclo atual: {ca} concursos** | Ideal: {ideal[0]}-{ideal[1]} | {status} → {dica}")
+            # ALERTA DE CICLO VIRANDO
+            if ca == ideal[1]-1:
+                st.warning(f"🔔 ALERTA: Faltando 1 concurso para fechar o ciclo ideal da {lot}.")
+            elif ca == ideal[1]:
+                st.warning(f"⚠️ ATENÇÃO: {lot} está no ÚLTIMO concurso do ciclo ideal ({ca}/{ideal[1]}).")
+            elif ca > ideal[1]:
+                st.error(f"🚨 CICLO ESTOURADO: {ca} concursos sem fechar todas as dezenas (ideal {ideal[1]}). Alta chance de virada agora!")
         c1,c2,c3=st.columns(3)
         with c1: st.markdown("**🔥 QUENTES**"); st.code(" ".join(f"{n:02d}" for n in c["q"]))
         with c2: st.markdown("**❄️ FRIOS**"); st.code(" ".join(f"{n:02d}" for n in c["f"]))
