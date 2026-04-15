@@ -59,8 +59,10 @@ def buscar_ciclo_real(loteria):
                 if r.status_code != 200: continue
                 d = r.json(); dezenas = d.get("listaDezenas") or d.get("dezenas") or []
                 for dz in dezenas:
-                    try: n=int(dz); 
-                        if 1 <= n <= max_n: freq[n]+=1
+                    try:
+                        n=int(dz)
+                        if 1 <= n <= max_n:
+                            freq[n]+=1
                     except: pass
                 buscados+=1
                 if buscados>=80: break
