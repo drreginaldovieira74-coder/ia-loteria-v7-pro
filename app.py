@@ -300,10 +300,85 @@ with tabs[10]:
     hist=[h for h in st.session_state.historico if h["lot"]==lot]
     if hist:
         total=sum(h["p"] for h in hist); com_ac=[h for h in hist if h.get("ac") is not None]; media=sum(h["ac"] for h in com_ac)/len(com_ac) if com_ac else 0
-        st.metric("Jogos",len(hist)); st.metric("Investido",f"R$ {total:.2f}"); st.metric("Média acertos",f"{media:.1f}")
+        c1,c2,c3 = st.columns(3)
+        with c1: st.metric("Jogos",len(hist))
+        with c2: st.metric("Investido",f"R$ {total:.2f}")
+        with c3: st.metric("Média acertos",f"{media:.1f}")
         df=pd.DataFrame([{"Focus":h["f"],"Acertos":h.get("ac",0)} for h in com_ac])
         if not df.empty: st.bar_chart(df.groupby("Focus").mean())
     else: st.info("Jogue e registre acertos")
+    
+    st.markdown("---")
+    st.subheader("🔬 Backtest Automático - v84.3")
+    st.caption("Testa sua estratégia nos últimos 10 concursos reais da Caixa")
+    
+    if st.button("▶️ Rodar Backtest", type="primary"):
+        if lot not in st.session_state.ciclos:
+            st.error("Atualize o ciclo primeiro na aba CICLO")
+        else:
+            with st.spinner(f"Buscando últimos 10 concursos da {lot}..."):
+                try:
+                    api = configs[lot]["api"]
+                    base = f"https://servicebus2.caixa.gov.br/portaldeloterias/api/{api}"
+                    latest = requests.get(base, timeout=10).json()
+                    num_atual = latest.get("numero", 0)
+                    
+                    resultados = []
+                    for i in range(num_atual-1, max(num_atual-11, 0), -1):
+                        try:
+                            r = requests.get(f"{base}/{i}", timeout=5)
+                            if r.status_code != 200: continue
+                            d = r.json()
+                            dezenas = [int(x) for x in (d.get("listaDezenas") or d.get("dezenas") or [])]
+                            if dezenas:
+                                resultados.append({"concurso": i, "dezenas": set(dezenas)})
+                        except: continue
+                    
+                    if len(resultados) < 5:
+                        st.warning("Não foi possível buscar histórico suficiente")
+                    else:
+                        ciclo = st.session_state.ciclos[lot]
+                        # Testa 3 estratégias
+                        estrategias = [
+                            {"nome": "Focus 30% (Frios)", "focus": 30},
+                            {"nome": f"Focus {focus}% (Seu atual)", "focus": focus},
+                            {"nome": "Focus 70% (Quentes)", "focus": 70},
+                        ]
+                        
+                        backtest_resultados = []
+                        for est in estrategias:
+                            acertos_lista = []
+                            for res in resultados:
+                                # Simula um jogo com aquele focus
+                                jogo = gerar(est["focus"], ciclo)
+                                acertos = len(set(jogo) & res["dezenas"])
+                                acertos_lista.append(acertos)
+                            
+                            media_ac = sum(acertos_lista)/len(acertos_lista)
+                            max_ac = max(acertos_lista)
+                            backtest_resultados.append({
+                                "Estratégia": est["nome"],
+                                "Média acertos": round(media_ac, 2),
+                                "Melhor": max_ac,
+                                "Pior": min(acertos_lista),
+                                "Total 10 jogos": sum(acertos_lista)
+                            })
+                        
+                        df_bt = pd.DataFrame(backtest_resultados)
+                        st.dataframe(df_bt, use_container_width=True, hide_index=True)
+                        
+                        melhor = df_bt.loc[df_bt["Média acertos"].idxmax()]
+                        st.success(f"🏆 **Melhor estratégia nos últimos {len(resultados)} concursos:** {melhor['Estratégia']} com média de {melhor['Média acertos']} acertos")
+                        
+                        # Recomendação
+                        if melhor["Estratégia"] != f"Focus {focus}% (Seu atual)":
+                            novo_focus = 30 if "30%" in melhor["Estratégia"] else 70
+                            st.warning(f"💡 Considere mudar seu Focus de {focus}% para {novo_focus}%")
+                        else:
+                            st.info("✅ Seu Focus atual está otimizado!")
+                            
+                except Exception as e:
+                    st.error(f"Erro no backtest: {str(e)}")
 
 with tabs[11]:
     st.subheader("💰 Preços")
