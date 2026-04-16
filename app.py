@@ -147,6 +147,20 @@ with tabs[0]:
             elif ca <= ideal[1]: status="🟡 Meio"; dica="Equilibre quentes/neutros"
             else: status="🔴 Fim"; dica="Priorize QUENTES"
             st.info(f"**Ciclo atual: {ca} concursos** | Ideal: {ideal[0]}-{ideal[1]} | {status} → {dica}")
+            
+            # ALERTA CICLO VIRANDO - v84.1
+            virando = False; msg_alerta = ""
+            if ca == ideal[0]-1:
+                virando = True; msg_alerta = f"⚠️ PRÉ-VIRADA: Próximo concurso ({ideal[0]}) entra no ciclo ideal. Prepare-se para mudar estratégia."
+            elif ca == ideal[0]:
+                virando = True; msg_alerta = f"🔴 CICLO VIRANDO: Entrou no ideal ({ca}/{ideal[1]}). Padrões começam a mudar AGORA."
+            elif ca == ideal[1]:
+                virando = True; msg_alerta = f"⚠️ FIM DO IDEAL: Último concurso do ciclo ideal. Próximo sai do padrão."
+            elif ca == ideal[1]+1:
+                virando = True; msg_alerta = f"🔴 CICLO VIRANDO: Saiu do ideal ({ca} > {ideal[1]}). Mude para QUENTES urgente."
+            
+            if virando:
+                st.warning(f"**🚨 ALERTA DE VIRADA - {lot}**\n\n{msg_alerta}\n\n**Recomendação:** Ajuste seu Focus para {70 if ca >= ideal[0] else 30}%")
         c1,c2,c3=st.columns(3)
         with c1: st.markdown("**🔥 QUENTES**"); st.code(" ".join(f"{n:02d}" for n in c["q"]))
         with c2: st.markdown("**❄️ FRIOS**"); st.code(" ".join(f"{n:02d}" for n in c["f"]))
@@ -309,11 +323,10 @@ with tabs[14]:
             st.info("💡 33 números NUNCA saíram (41% de brecha)")
         
         if st.button("🎯 Gerar 3 jogos São João", type="primary"):
-            # usa ciclo de 3 anos da Quina
             try:
                 ciclo_sj = buscar_ciclo_real("Quina")
                 for i in range(3):
-                    jogo = gerar(40, ciclo_sj)[:5]  # Quina = 5 números
+                    jogo = gerar(40, ciclo_sj)[:5]
                     st.success(f"Jogo {i+1}: {'-'.join(f'{n:02d}' for n in sorted(jogo))}")
             except:
                 for i in range(3):
