@@ -22,6 +22,7 @@ if 'ciclos' not in st.session_state: st.session_state.ciclos = {}
 if 'sugestoes_por_loteria' not in st.session_state: st.session_state.sugestoes_por_loteria = {}
 if 'dados_caixa' not in st.session_state: st.session_state.dados_caixa = {}
 if 'ao_vivo' not in st.session_state: st.session_state.ao_vivo = []
+if 'historico_ciclos' not in st.session_state: st.session_state.historico_ciclos = {}
 
 ciclos_ideais = {
     "Lotofácil": (4,6),
@@ -89,7 +90,17 @@ def buscar_ciclo_real(loteria):
         q_q=int(max_n*0.35); q_f=int(max_n*0.3)
         quentes=sorted([n for n,_ in ordenados[:q_q]]); frios=sorted([n for n,_ in ordenados[-q_f:]])
         neutros=sorted([n for n in range(1,max_n+1) if n not in quentes and n not in frios])
-        return {"q":quentes,"f":frios,"n":neutros,"fase":"REAL","h":f"{buscados} concursos","freq":freq,"atualizado":datetime.now().strftime("%H:%M"),"ciclo_atual":ciclo_atual}
+        resultado = {"q":quentes,"f":frios,"n":neutros,"fase":"REAL","h":f"{buscados} concursos","freq":freq,"atualizado":datetime.now().strftime("%H:%M"),"ciclo_atual":ciclo_atual}
+        # Guarda histórico de ciclos - v84.2
+        if loteria not in st.session_state.historico_ciclos:
+            st.session_state.historico_ciclos[loteria] = []
+        hist = st.session_state.historico_ciclos[loteria]
+        # Adiciona só se mudou ou é o primeiro
+        if not hist or hist[-1]["ciclo_atual"] != ciclo_atual:
+            hist.append({"data": datetime.now().strftime("%d/%m %H:%M"), "ciclo_atual": ciclo_atual, "concurso": num_atual})
+            # Mantém só os últimos 20
+            st.session_state.historico_ciclos[loteria] = hist[-20:]
+        return resultado
     except:
         max_n=configs[loteria]["max"]; quentes=sorted(random.sample(range(1,max_n+1), int(max_n*0.35)))
         resto=[x for x in range(1,max_n+1) if x not in quentes]; frios=sorted(random.sample(resto, int(max_n*0.3)))
@@ -161,6 +172,19 @@ with tabs[0]:
             
             if virando:
                 st.warning(f"**🚨 ALERTA DE VIRADA - {lot}**\n\n{msg_alerta}\n\n**Recomendação:** Ajuste seu Focus para {70 if ca >= ideal[0] else 30}%")
+            
+            # HISTÓRICO DE CICLOS - v84.2
+            hist = st.session_state.historico_ciclos.get(lot, [])
+            if len(hist) > 1:
+                with st.expander(f"📜 Histórico de ciclos - {lot} (últimos {len(hist)})"):
+                    df_hist = pd.DataFrame(hist)
+                    df_hist.columns = ["Data", "Ciclo (concursos)", "Concurso"]
+                    st.dataframe(df_hist.iloc[::-1], use_container_width=True, hide_index=True)
+                    # Análise rápida
+                    valores = [h["ciclo_atual"] for h in hist]
+                    media = sum(valores)/len(valores)
+                    mais_freq = max(set(valores), key=valores.count)
+                    st.caption(f"Média: {media:.1f} | Mais frequente: {mais_freq} concursos | Ideal: {ideal[0]}-{ideal[1]}")
         c1,c2,c3=st.columns(3)
         with c1: st.markdown("**🔥 QUENTES**"); st.code(" ".join(f"{n:02d}" for n in c["q"]))
         with c2: st.markdown("**❄️ FRIOS**"); st.code(" ".join(f"{n:02d}" for n in c["f"]))
