@@ -91,14 +91,12 @@ def buscar_ciclo_real(loteria):
         quentes=sorted([n for n,_ in ordenados[:q_q]]); frios=sorted([n for n,_ in ordenados[-q_f:]])
         neutros=sorted([n for n in range(1,max_n+1) if n not in quentes and n not in frios])
         resultado = {"q":quentes,"f":frios,"n":neutros,"fase":"REAL","h":f"{buscados} concursos","freq":freq,"atualizado":datetime.now().strftime("%H:%M"),"ciclo_atual":ciclo_atual}
-        # Guarda histórico de ciclos - v84.2
+        # v84.2: Guarda histórico de ciclos
         if loteria not in st.session_state.historico_ciclos:
             st.session_state.historico_ciclos[loteria] = []
         hist = st.session_state.historico_ciclos[loteria]
-        # Adiciona só se mudou ou é o primeiro
         if not hist or hist[-1]["ciclo_atual"] != ciclo_atual:
             hist.append({"data": datetime.now().strftime("%d/%m %H:%M"), "ciclo_atual": ciclo_atual, "concurso": num_atual})
-            # Mantém só os últimos 20
             st.session_state.historico_ciclos[loteria] = hist[-20:]
         return resultado
     except:
@@ -159,32 +157,31 @@ with tabs[0]:
             else: status="🔴 Fim"; dica="Priorize QUENTES"
             st.info(f"**Ciclo atual: {ca} concursos** | Ideal: {ideal[0]}-{ideal[1]} | {status} → {dica}")
             
-            # ALERTA CICLO VIRANDO - v84.1
+            # v84.1: ALERTA CICLO VIRANDO
             virando = False; msg_alerta = ""
             if ca == ideal[0]-1:
-                virando = True; msg_alerta = f"⚠️ PRÉ-VIRADA: Próximo concurso ({ideal[0]}) entra no ciclo ideal. Prepare-se para mudar estratégia."
+                virando = True; msg_alerta = f"⚠️ PRÉ-VIRADA: Próximo concurso ({ideal[0]}) entra no ciclo ideal."
             elif ca == ideal[0]:
-                virando = True; msg_alerta = f"🔴 CICLO VIRANDO: Entrou no ideal ({ca}/{ideal[1]}). Padrões começam a mudar AGORA."
+                virando = True; msg_alerta = f"🔴 CICLO VIRANDO: Entrou no ideal ({ca}/{ideal[1]}). Padrões mudam AGORA."
             elif ca == ideal[1]:
-                virando = True; msg_alerta = f"⚠️ FIM DO IDEAL: Último concurso do ciclo ideal. Próximo sai do padrão."
+                virando = True; msg_alerta = f"⚠️ FIM DO IDEAL: Último concurso do ciclo ideal."
             elif ca == ideal[1]+1:
-                virando = True; msg_alerta = f"🔴 CICLO VIRANDO: Saiu do ideal ({ca} > {ideal[1]}). Mude para QUENTES urgente."
+                virando = True; msg_alerta = f"🔴 CICLO VIRANDO: Saiu do ideal ({ca} > {ideal[1]}). Mude para QUENTES."
             
             if virando:
-                st.warning(f"**🚨 ALERTA DE VIRADA - {lot}**\n\n{msg_alerta}\n\n**Recomendação:** Ajuste seu Focus para {70 if ca >= ideal[0] else 30}%")
+                st.warning(f"**🚨 ALERTA - {lot}**\n\n{msg_alerta}\n\n**Recomendação:** Focus {70 if ca >= ideal[0] else 30}%")
             
-            # HISTÓRICO DE CICLOS - v84.2
+            # v84.2: HISTÓRICO DE CICLOS
             hist = st.session_state.historico_ciclos.get(lot, [])
             if len(hist) > 1:
                 with st.expander(f"📜 Histórico de ciclos - {lot} (últimos {len(hist)})"):
                     df_hist = pd.DataFrame(hist)
-                    df_hist.columns = ["Data", "Ciclo (concursos)", "Concurso"]
+                    df_hist.columns = ["Data", "Ciclo", "Concurso"]
                     st.dataframe(df_hist.iloc[::-1], use_container_width=True, hide_index=True)
-                    # Análise rápida
                     valores = [h["ciclo_atual"] for h in hist]
                     media = sum(valores)/len(valores)
                     mais_freq = max(set(valores), key=valores.count)
-                    st.caption(f"Média: {media:.1f} | Mais frequente: {mais_freq} concursos | Ideal: {ideal[0]}-{ideal[1]}")
+                    st.caption(f"Média: {media:.1f} | Mais frequente: {mais_freq} | Ideal: {ideal[0]}-{ideal[1]}")
         c1,c2,c3=st.columns(3)
         with c1: st.markdown("**🔥 QUENTES**"); st.code(" ".join(f"{n:02d}" for n in c["q"]))
         with c2: st.markdown("**❄️ FRIOS**"); st.code(" ".join(f"{n:02d}" for n in c["f"]))
@@ -219,7 +216,13 @@ with tabs[1]:
         c1,c2=st.columns([5,1])
         with c1: st.code(f"S{i} F{s['f']}% ({s['nq']}Q): {'-'.join(f'{n:02d}' for n in s['j'])}")
         with c2:
-            if st.button("💾",key=f"sv{i}"): st.session_state.historico.append({"lot":lot,"j":s["j"],"f":s["f"],"data":datetime.now().strftime("%d/%m %H:%M"),"ac":None,"p":cfg["preco"]})
+            col_save1, col_save2 = st.columns([1,1])
+            with col_save1:
+                if st.button("💾 Real",key=f"sv{i}"): 
+                    st.session_state.historico.append({"lot":lot,"j":s["j"],"f":s["f"],"data":datetime.now().strftime("%d/%m %H:%M"),"ac":None,"p":cfg["preco"],"modo":"real"})
+            with col_save2:
+                if st.button("🧪 Teste",key=f"test{i}"): 
+                    st.session_state.historico.append({"lot":lot,"j":s["j"],"f":s["f"],"data":datetime.now().strftime("%d/%m %H:%M"),"ac":None,"p":0,"modo":"teste"})
 
 with tabs[2]:
     st.subheader("Fechamento")
@@ -310,75 +313,73 @@ with tabs[10]:
     
     st.markdown("---")
     st.subheader("🔬 Backtest Automático - v84.3")
-    st.caption("Testa sua estratégia nos últimos 10 concursos reais da Caixa")
-    
     if st.button("▶️ Rodar Backtest", type="primary"):
         if lot not in st.session_state.ciclos:
-            st.error("Atualize o ciclo primeiro na aba CICLO")
+            st.error("Atualize o ciclo primeiro")
         else:
-            with st.spinner(f"Buscando últimos 10 concursos da {lot}..."):
+            with st.spinner(f"Testando últimos 10 concursos da {lot}..."):
                 try:
-                    api = configs[lot]["api"]
-                    base = f"https://servicebus2.caixa.gov.br/portaldeloterias/api/{api}"
-                    latest = requests.get(base, timeout=10).json()
-                    num_atual = latest.get("numero", 0)
-                    
+                    api = configs[lot]["api"]; base = f"https://servicebus2.caixa.gov.br/portaldeloterias/api/{api}"
+                    latest = requests.get(base, timeout=10).json(); num_atual = latest.get("numero", 0)
                     resultados = []
                     for i in range(num_atual-1, max(num_atual-11, 0), -1):
                         try:
                             r = requests.get(f"{base}/{i}", timeout=5)
                             if r.status_code != 200: continue
-                            d = r.json()
-                            dezenas = [int(x) for x in (d.get("listaDezenas") or d.get("dezenas") or [])]
-                            if dezenas:
-                                resultados.append({"concurso": i, "dezenas": set(dezenas)})
+                            d = r.json(); dezenas = [int(x) for x in (d.get("listaDezenas") or d.get("dezenas") or [])]
+                            if dezenas: resultados.append({"concurso": i, "dezenas": set(dezenas)})
                         except: continue
-                    
                     if len(resultados) < 5:
-                        st.warning("Não foi possível buscar histórico suficiente")
+                        st.warning("Histórico insuficiente")
                     else:
                         ciclo = st.session_state.ciclos[lot]
-                        # Testa 3 estratégias
-                        estrategias = [
-                            {"nome": "Focus 30% (Frios)", "focus": 30},
-                            {"nome": f"Focus {focus}% (Seu atual)", "focus": focus},
-                            {"nome": "Focus 70% (Quentes)", "focus": 70},
-                        ]
-                        
+                        estrategias = [{"nome": "Focus 30%", "focus": 30}, {"nome": f"Focus {focus}% (Seu)", "focus": focus}, {"nome": "Focus 70%", "focus": 70}]
                         backtest_resultados = []
                         for est in estrategias:
-                            acertos_lista = []
-                            for res in resultados:
-                                # Simula um jogo com aquele focus
-                                jogo = gerar(est["focus"], ciclo)
-                                acertos = len(set(jogo) & res["dezenas"])
-                                acertos_lista.append(acertos)
-                            
+                            acertos_lista = [len(set(gerar(est["focus"], ciclo)) & res["dezenas"]) for res in resultados]
                             media_ac = sum(acertos_lista)/len(acertos_lista)
-                            max_ac = max(acertos_lista)
-                            backtest_resultados.append({
-                                "Estratégia": est["nome"],
-                                "Média acertos": round(media_ac, 2),
-                                "Melhor": max_ac,
-                                "Pior": min(acertos_lista),
-                                "Total 10 jogos": sum(acertos_lista)
-                            })
-                        
+                            backtest_resultados.append({"Estratégia": est["nome"], "Média": round(media_ac,2), "Melhor": max(acertos_lista), "Total": sum(acertos_lista)})
                         df_bt = pd.DataFrame(backtest_resultados)
                         st.dataframe(df_bt, use_container_width=True, hide_index=True)
-                        
-                        melhor = df_bt.loc[df_bt["Média acertos"].idxmax()]
-                        st.success(f"🏆 **Melhor estratégia nos últimos {len(resultados)} concursos:** {melhor['Estratégia']} com média de {melhor['Média acertos']} acertos")
-                        
-                        # Recomendação
-                        if melhor["Estratégia"] != f"Focus {focus}% (Seu atual)":
-                            novo_focus = 30 if "30%" in melhor["Estratégia"] else 70
-                            st.warning(f"💡 Considere mudar seu Focus de {focus}% para {novo_focus}%")
-                        else:
-                            st.info("✅ Seu Focus atual está otimizado!")
-                            
-                except Exception as e:
-                    st.error(f"Erro no backtest: {str(e)}")
+                        melhor = df_bt.loc[df_bt["Média"].idxmax()]
+                        st.success(f"🏆 **Melhor:** {melhor['Estratégia']} com {melhor['Média']} acertos de média")
+                except: st.error("Erro no backtest")
+    
+    st.markdown("---")
+    st.subheader("🧪 Modo Simulação Pessoal - v84.4")
+    testes = [h for h in st.session_state.historico if h.get("modo") == "teste" and h["lot"] == lot]
+    reais = [h for h in st.session_state.historico if h.get("modo", "real") == "real" and h["lot"] == lot]
+    col_t1, col_t2 = st.columns(2)
+    with col_t1: st.metric("Jogos Teste", len(testes), "R$ 0")
+    with col_t2: st.metric("Jogos Reais", len(reais), f"R$ {sum(h['p'] for h in reais):.2f}")
+    
+    if testes and st.button("🔄 Conferir Testes Agora", type="primary"):
+        with st.spinner("Buscando resultado..."):
+            try:
+                api = configs[lot]["api"]; d = requests.get(f"https://servicebus2.caixa.gov.br/portaldeloterias/api/{api}", timeout=10).json()
+                dezenas = [int(x) for x in (d.get("listaDezenas") or d.get("dezenas") or [])]
+                concurso = d.get("numero") or d.get("numeroDoConcurso")
+                atualizados = 0
+                for idx, h in enumerate(st.session_state.historico):
+                    if h.get("modo") == "teste" and h["lot"] == lot and h.get("ac") is None:
+                        st.session_state.historico[idx]["ac"] = len(set(h["j"]) & set(dezenas))
+                        st.session_state.historico[idx]["concurso_conferido"] = concurso
+                        atualizados += 1
+                if atualizados > 0: st.success(f"✅ {atualizados} testes conferidos - concurso {concurso}"); st.rerun()
+                else: st.info("Nada novo para conferir")
+            except: st.error("Erro ao buscar")
+    
+    if testes:
+        com_ac = [h for h in testes if h.get("ac") is not None]
+        if com_ac:
+            media_teste = sum(h["ac"] for h in com_ac) / len(com_ac)
+            st.metric("Média testes", f"{media_teste:.1f}", f"{len(com_ac)} conferidos")
+            reais_com_ac = [h for h in reais if h.get("ac") is not None]
+            if reais_com_ac:
+                media_real = sum(h["ac"] for h in reais_com_ac) / len(reais_com_ac)
+                delta = media_teste - media_real
+                if delta > 0: st.success(f"📈 Testes {delta:.1f} acima dos reais")
+                elif delta < 0: st.warning(f"📉 Testes {abs(delta):.1f} abaixo dos reais")
 
 with tabs[11]:
     st.subheader("💰 Preços")
@@ -410,18 +411,11 @@ with tabs[13]:
 
 with tabs[14]:
     st.subheader("🎯 Hub Especiais - Loterias Sazonais")
-    st.caption("São João, Mega da Virada, Lotofácil Independência e Dupla de Páscoa com histórico real")
-    
     col1, col2 = st.columns(2)
-    
     with col1:
         st.markdown("### 🌽 Quina São João")
-        st.markdown('<div class="real-box"><b>15 edições (2011-2025)</b><br>Prêmio médio: R$ 120 milhões</div>', unsafe_allow_html=True)
-        if st.button("📊 Ver histórico São João"):
-            st.code("2025: 12-19-20-34-35\n2024: 21-38-60-64-70\n2023: 12-13-45-47-70\n2022: 07-23-30-62-76\n2021: 15-30-32-37-62")
-            st.info("💡 33 números NUNCA saíram (41% de brecha)")
-        
-        if st.button("🎯 Gerar 3 jogos São João", type="primary"):
+        st.markdown('<div class="real-box"><b>15 edições</b><br>Prêmio médio: R$ 120mi</div>', unsafe_allow_html=True)
+        if st.button("Gerar 3 jogos São João", type="primary"):
             try:
                 ciclo_sj = buscar_ciclo_real("Quina")
                 for i in range(3):
@@ -431,15 +425,10 @@ with tabs[14]:
                 for i in range(3):
                     jogo = sorted(random.sample(range(1,81),5))
                     st.success(f"Jogo {i+1}: {'-'.join(f'{n:02d}' for n in jogo)}")
-    
     with col2:
         st.markdown("### 🎆 Mega da Virada")
-        st.markdown('<div class="real-box"><b>17 edições (2008-2024)</b><br>Prêmio 2024: R$ 635 milhões</div>', unsafe_allow_html=True)
-        if st.button("📊 Ver histórico Mega Virada"):
-            st.code("2024: 01-17-19-29-50-57\n2023: 21-24-33-41-48-56\n2022: 04-05-10-34-58-59")
-            st.info("💡 Número 10 saiu 5 vezes (mais frequente)")
-        
-        if st.button("🎯 Gerar 3 jogos Virada", type="primary"):
+        st.markdown('<div class="real-box"><b>17 edições</b><br>Prêmio 2024: R$ 635mi</div>', unsafe_allow_html=True)
+        if st.button("Gerar 3 jogos Virada", type="primary"):
             try:
                 ciclo_mv = buscar_ciclo_real("Mega-Sena")
                 for i in range(3):
@@ -449,20 +438,15 @@ with tabs[14]:
                 for i in range(3):
                     jogo = sorted(random.sample(range(1,61),6))
                     st.success(f"Jogo {i+1}: {'-'.join(f'{n:02d}' for n in jogo)}")
-    
     st.markdown("---")
     col3, col4 = st.columns(2)
-    
     with col3:
         st.markdown("### 🇧🇷 Lotofácil Independência")
-        st.info("12 edições - Setembro")
         if st.button("Gerar Independência"):
             jogo = sorted(random.sample(range(1,26),15))
             st.success(f"{'-'.join(f'{n:02d}' for n in jogo)}")
-    
     with col4:
         st.markdown("### 🐰 Dupla de Páscoa")
-        st.info("Sempre em abril")
         if st.button("Gerar Páscoa"):
             jogo = sorted(random.sample(range(1,51),6))
             st.success(f"{'-'.join(f'{n:02d}' for n in jogo)}")
