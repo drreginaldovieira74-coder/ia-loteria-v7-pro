@@ -111,26 +111,25 @@ def gerar(focus_pct, ciclo):
     dna = DNAS.get(lot, [])
     # Prioriza DNA nos quentes
     if nq>0:
-        # primeiro tenta pegar do DNA que está nos quentes
         dna_quentes = [n for n in dna if n in ciclo["q"]]
         if dna_quentes:
-            pegar = min(len(dna_quentes), nq, len(ciclo["q"]))
-            jogo += random.sample(dna_quentes, min(pegar, len(dna_quentes)))
-        # completa com outros quentes
+            pegar = min(len(dna_quentes), nq)
+            jogo += random.sample(dna_quentes, pegar)
         restantes = nq - len(jogo)
         if restantes > 0:
             outros_q = [n for n in ciclo["q"] if n not in jogo]
             if outros_q:
                 jogo += random.sample(outros_q, min(restantes, len(outros_q)))
     pool=ciclo["f"]+ciclo["n"]
-    if len(jogo)<qtd: 
-        # tenta completar com DNA restante
+    if len(jogo)<qtd:
         dna_rest = [n for n in dna if n not in jogo and n <= cfg["max"]]
-        if dna_rest and len(jogo) < qtd:
+        if dna_rest:
             pegar_dna = min(len(dna_rest), qtd - len(jogo))
             jogo += random.sample(dna_rest, pegar_dna)
         if len(jogo) < qtd:
-            jogo += random.sample([n for n in pool if n not in jogo], min(qtd-len(jogo), len([n for n in pool if n not in jogo])))
+            disponiveis = [n for n in pool if n not in jogo]
+            if disponiveis:
+                jogo += random.sample(disponiveis, min(qtd-len(jogo), len(disponiveis)))
     while len(jogo)<qtd:
         n=random.randint(1,cfg["max"])
         if n not in jogo: jogo.append(n)
