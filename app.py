@@ -61,8 +61,8 @@ DNAS = {
 }
 
 with st.sidebar:
-    st.markdown("### 🎯 LOTOELITE")
-    st.markdown('<div class="ia-box">🧠 v79g IA CICLO</div>', unsafe_allow_html=True)
+    st.markdown("### 🎯 LOTOELITE v84.3")
+    st.markdown('<div class="ia-box">🧠 v84.3 DNA ATIVO</div>', unsafe_allow_html=True)
     lot = st.selectbox("Loteria", list(configs.keys()))
     focus = st.slider("Focus %", 0, 100, st.session_state.perfil["focus"], 5)
     st.session_state.perfil["focus"] = focus
@@ -178,7 +178,7 @@ def buscar_ao_vivo():
             dados.append({"Loteria":nome,"Concurso":"-","Acumulou":"Erro","Próximo Prêmio":0,"Prêmio_fmt":"-","Próximo Sorteio":"-","acumulado_bool":False})
     return sorted(dados, key=lambda x: x["Próximo Prêmio"], reverse=True)
 
-st.markdown('<div class="main-title">LOTOELITE v84.3 DNA</div>', unsafe_allow_html=True)
+st.markdown('<div class="main-title">LOTOELITE</div>', unsafe_allow_html=True)
 
 tabs = st.tabs(["📊 CICLO","🤖 IA 3","🔒 FECHAMENTO","🔒 FECH 21","📍 POSIÇÃO","📈 GRÁFICO","🎲 BOLÕES","🏆 RESULTADOS","💾 MEUS JOGOS","🔍 CONFERIDOR","🧠 PERFIL","💰 PREÇOS","📥 EXPORTAR","🔴 AO VIVO","🎯 HUB ESPECIAIS"])
 
