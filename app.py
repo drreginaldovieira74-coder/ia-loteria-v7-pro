@@ -281,12 +281,8 @@ with tabs[1]:
                     focos = [max(10,focus-15), focus, min(95,focus+15)]
                     modo = "Meio de ciclo → equilibrado"
         else:
-                modo = "Fim de ciclo → mais quentes"
-            else:  # meio
-                focos = [max(10,focus-15), focus, min(95,focus+15)]
-                modo = "Meio de ciclo → equilibrado"
-        else:
-            focos = [max(10,focus-15), focus, min(95,focus+15)]; modo = "Ciclo padrão"
+            focos = [max(10,focus-15), focus, min(95,focus+15)]
+            modo = "Ciclo padrão"
         st.caption(f"IA ajustada: {modo}")
         novas=[]
         for f in focos:
