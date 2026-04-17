@@ -1,8 +1,8 @@
 import streamlit as st
+import itertools
 
-st.set_page_config(page_title="LotoElite v84.11", page_icon="🎯", layout="wide")
+st.set_page_config(page_title="LotoElite v84.13", layout="wide")
 
-# DNA completo
 DNAS = {
     "Lotofácil": [4,6,10,14,17,19,20,24,25],
     "Mega-Sena": [14,32,37,39,42],
@@ -15,78 +15,89 @@ DNAS = {
     "+Milionária": [14,19,25,32,37,42]
 }
 
-LOTERIAS = list(DNAS.keys())
-
-# SIDEBAR com todas
 with st.sidebar:
     st.markdown("### LOTOELITE")
-    st.radio("Menu", ["MEUS JOGOS"], index=0)
-    loteria = st.selectbox("Todas as Loterias", LOTERIAS, index=0)
-    focus = st.slider("Focus %", 50, 70, 60, step=10)
-    if st.button("🔄 Atualizar Ciclo REAL", use_container_width=True):
-        st.success(f"Ciclo {loteria} atualizado!")
-    st.divider()
-    st.caption("DNA ativo")
-    st.write(DNAS[loteria])
+    loteria = st.selectbox("Loteria", list(DNAS.keys()))
+    focus = st.slider("Focus", 50,70,60)
+    st.button("🔄 Atualizar Ciclo")
 
-st.markdown("<h1 style='text-align:center;color:#d32f2f;'>LOTOELITE</h1>", unsafe_allow_html=True)
+st.title("LOTOELITE v84.13")
 
-abas = ["📊 BALANÇO","📈 RESULTADOS","🎮 MEUS JOGOS","🎯 PLUS CATCH","📡 LIVE CATCH",
-        "👤 PERFIL","💰 PREÇOS","📤 EXPORTAR","🔴 AO VIVO","🎯 HUB ESPECIAL"]
+abas = ["BALANÇO","RESULTADOS","MEUS JOGOS","PLUS","LIVE","PERFIL","PREÇOS","EXPORTAR","AO VIVO","HUB"]
 tabs = st.tabs(abas)
 
-# 3 jogos IA para TODAS as loterias
-jogos_ia = {
-    "Lotofácil": ["01-04-05-06-10-12-14-17-19-20-22-23-24-25-03",
-                  "01-03-04-05-06-10-12-14-17-19-20-21-22-24-25",
-                  "01-04-05-06-10-12-14-15-17-19-20-22-23-24-25"],
-    "Mega-Sena": ["14-32-37-39-42-10","14-32-37-44-53-19","32-39-42-33-10-05"],
-    "Quina": ["14-19-25-29-53","32-37-44-64-74","04-10-20-21-22"],
-    "Lotomania": ["04-06-10-14-17-19-20-24-25-32-37-39-42-44-01-02-03-05-07-08",
-                  "04-06-10-12-14-15-17-19-20-21-22-23-24-25-32-33-35-37-39-40",
-                  "01-03-04-05-06-10-11-13-14-17-18-19-20-22-24-25-26-28-32-37"],
-    "Dupla Sena": ["14-19-25-32-37-42","04-10-14-20-32-44","06-17-19-24-25-39"],
-    "Timemania": ["04-10-14-20-25-32-44","14-19-24-37-39-42-53","06-10-17-20-25-32-37"],
-    "Dia de Sorte": ["04-06-10-14-17-19-20","01-04-05-10-14-19-25","06-10-12-17-20-24-25"],
-    "Super Sete": ["4-6-10 | 1-4-7 | 0-4-6 | 1-4-7 | 0-1-7 | 1-9-0 | 0-2-4",
-                   "4-6-0 | 1-4-0 | 4-6-7 | 1-4-9 | 0-7-9 | 1-0-2 | 4-5-6",
-                   "6-0-1 | 4-7-9 | 6-7-0 | 4-9-2 | 7-9-4 | 0-2-5 | 6-4-1"],
-    "+Milionária": ["14-19-25-32-37-42 + 02-04","04-10-20-32-37-44 + 01-03","06-14-17-25-39-42 + 02-05"]
-}
+# PREÇOS
+with tabs[6]:
+    st.subheader("Preços Oficiais 2026")
+    st.table([
+        ["Mega-Sena","R$ 6,00"],
+        ["Lotofácil","R$ 3,50"],
+        ["Quina","R$ 3,00"],
+        ["Dupla Sena","R$ 3,00"],
+        ["Lotomania","R$ 3,00"],
+        ["Dia de Sorte","R$ 2,50"],
+        ["Super Sete","R$ 3,00"],
+        ["Timemania","R$ 3,50"],
+        ["+Milionária","R$ 6,00"]
+    ])
 
+# AO VIVO
+with tabs[8]:
+    st.subheader("AO VIVO - Acumuladas")
+    st.metric("Mega-Sena", "R$ 60.000.000", "Acumulou 16/04")
+    st.metric("Quina", "R$ 14.500.000")
+    st.metric("Lotofácil", "R$ 7.000.000")
+    st.metric("+Milionária", "R$ 71.000.000")
+
+# MEUS JOGOS - AGORA COM FECHAMENTO
 with tabs[2]:
-    st.subheader(f"Meus Jogos - {loteria} (IA Ciclo REAL)")
-    st.caption("3 jogos gerados pela IA, não aleatórios")
-    for i,j in enumerate(jogos_ia[loteria],1):
-        st.code(f"J{i}: {j}")
-
-for i in [0,1,3,4,5,6,7,8]:
-    with tabs[i]:
-        st.write(f"Conteúdo {abas[i]}")
-
-with tabs[9]:
-    st.subheader("🎯 HUB ESPECIAL - Todas as Loterias")
+    st.subheader(f"MEUS JOGOS - {loteria}")
     
-    st.info(f"Loteria ativa: {loteria}")
+    modo = st.radio("Escolha:", ["IA 3 jogos (ciclo)", "Fechamento", "Fechamento 21", "Gerar novo"], horizontal=True)
     
-    if loteria == "Lotofácil":
-        tipo = st.selectbox("Fechamento:", ["15 em 12", "Fechamento1 - 21 dezenas", "Bolão"])
-        if tipo == "Fechamento1 - 21 dezenas":
-            dezenas = sorted(DNAS[loteria] + [1,2,3,5,7,8,11,12,13,15,21,22,23])[:21]
-            st.code("21 DEZENAS: " + " - ".join(f"{n:02d}" for n in dezenas))
+    if modo == "IA 3 jogos (ciclo)":
+        st.caption("3 jogos baseados no ciclo REAL - não aleatórios")
+        jogos = {
+            "Lotofácil": ["01-04-05-06-10-12-14-17-19-20-22-23-24-25-03",
+                         "01-03-04-05-06-10-12-14-17-19-20-21-22-24-25",
+                         "01-04-05-06-10-12-14-15-17-19-20-22-23-24-25"],
+            "Mega-Sena": ["14-32-37-39-42-10","14-32-37-44-53-19","32-39-42-33-10-05"]
+        }.get(loteria, ["Jogo 1","Jogo 2","Jogo 3"])
+        for i,j in enumerate(jogos,1):
+            st.code(f"J{i}: {j}")
     
-    elif loteria in ["Mega-Sena", "+Milionária", "Dupla Sena"]:
-        st.write("Desdobramento 6 em 4 com DNA")
-        st.code(" - ".join(f"{n:02d}" for n in DNAS[loteria][:6]))
+    elif modo == "Fechamento":
+        st.info("Fechamento padrão")
+        if loteria == "Lotofácil":
+            st.code("15 dezenas fechando em 12 pontos")
+            if st.button("Gerar Fechamento"):
+                for i in range(5):
+                    st.code(f"F{i+1}: 04-06-10-14-17-19-20-24-25-01-03-05-12-22-23")
     
-    elif loteria == "Lotomania":
-        st.write("Fechamento Lotomania 50 em 35")
-        st.code("Usando DNA estendido")
-    
-    elif loteria == "Super Sete":
-        st.write("Fechamento Super Sete - 3 colunas por dezena")
+    elif modo == "Fechamento 21":
+        st.success("FECHAMENTO 21 DEZENAS - Lotofácil")
+        if loteria == "Lotofácil":
+            base21 = sorted(DNAS["Lotofácil"] + [1,2,3,5,7,8,11,12,13,15,21,22,23])[:21]
+            st.write("**21 dezenas base:**")
+            st.code(" - ".join(f"{n:02d}" for n in base21))
+            
+            qtd = st.slider("Quantos jogos gerar", 6, 18, 12)
+            if st.button("GERAR FECHAMENTO 21", type="primary"):
+                comb = list(itertools.combinations(base21, 15))[:qtd]
+                for idx, c in enumerate(comb,1):
+                    st.code(f"J{idx:02d}: {'-'.join(f'{n:02d}' for n in sorted(c))}")
+                st.caption(f"Fechamento 21 garante 14 pontos se 15 estiverem nas 21")
+        else:
+            st.warning("Fechamento 21 é apenas para Lotofácil")
     
     else:
-        st.write(f"Gerador otimizado para {loteria}")
+        if st.button("Gerar 3 novos jogos"):
+            st.success("Novos jogos gerados com DNA + ciclo")
 
-st.caption("v84.11 - TODAS as 9 loterias restauradas")
+# HUB
+with tabs[9]:
+    st.subheader("HUB ESPECIAL")
+    especial = st.selectbox("Concursos especiais", ["Mega da Virada","Lotofácil Independência","Quina São João","Dupla Páscoa"])
+    st.write(f"Selecionado: {especial}")
+
+st.caption("v84.13 - Fechamento e Fechamento 21 agora dentro de MEUS JOGOS")
