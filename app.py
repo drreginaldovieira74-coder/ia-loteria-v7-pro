@@ -4,7 +4,7 @@ import random
 from datetime import datetime
 import requests
 
-st.set_page_config(page_title="LOTOELITE v84.3 DNA", layout="wide", page_icon="🎯")
+st.set_page_config(page_title="LOTOELITE v85.1", layout="wide", page_icon="🎯")
 
 st.markdown("""
 <style>
@@ -61,8 +61,8 @@ DNAS = {
 }
 
 with st.sidebar:
-    st.markdown("### 🎯 LOTOELITE v84.3")
-    st.markdown('<div class="ia-box">🧠 v84.3 DNA ATIVO</div>', unsafe_allow_html=True)
+    st.markdown("### 🎯 LOTOELITE v85.1")
+    st.markdown('<div class="ia-box">🧠 v85.1 IA CICLO+</div>', unsafe_allow_html=True)
     lot = st.selectbox("Loteria", list(configs.keys()))
     focus = st.slider("Focus %", 0, 100, st.session_state.perfil["focus"], 5)
     st.session_state.perfil["focus"] = focus
@@ -124,11 +124,20 @@ def gerar(focus_pct, ciclo):
     jogo = []
     dna = DNAS.get(lot, [])
     
-    # 1. pega DNA que está nos quentes primeiro
-    for num in dna:
+    # v85.1 - brecha DNA: prioriza DNA atrasado no início de ciclo
+    ca = ciclo.get("ciclo_atual",0)
+    ideal = ciclos_ideais.get(lot,(0,0))
+    prioriza_frios = ca < ideal[0]*0.8 if ideal[0] else False
+    dna_q = [d for d in dna if d in ciclo["q"]]
+    dna_f = [d for d in dna if d in ciclo["f"]]
+    dna_n = [d for d in dna if d not in ciclo["q"] and d not in ciclo["f"]]
+    dna_prio = dna_f + dna_n + dna_q if prioriza_frios else dna_q + dna_n + dna_f
+    
+    # 1. pega DNA priorizado primeiro
+    for num in dna_prio:
         if len(jogo) >= nq:
             break
-        if num in ciclo["q"] and num not in jogo:
+        if num not in jogo and num <= cfg["max"]:
             jogo.append(num)
     
     # 2. completa quentes normais
@@ -138,7 +147,7 @@ def gerar(focus_pct, ciclo):
             break
         jogo.append(random.choice(candidatos))
     
-    # 3. completa com resto do DNA
+    # 3. completa com resto do DNA se sobrou
     for num in dna:
         if len(jogo) >= qtd:
             break
@@ -197,6 +206,14 @@ with tabs[0]:
             elif ca <= ideal[1]: status="🟡 Meio"; dica="Equilibre quentes/neutros"
             else: status="🔴 Fim"; dica="Priorize QUENTES"
             st.info(f"**Ciclo atual: {ca} concursos** | Ideal: {ideal[0]}-{ideal[1]} | {status} → {dica}")
+            # v85.1 - anti-ciclo: números atrasados
+            freq = c.get("freq",{})
+            if freq:
+                media = sum(freq.values())/len(freq)
+                atrasados = [n for n,v in freq.items() if v < media*0.68]
+                atrasados = sorted(atrasados, key=lambda x: freq[x])[:10]
+                if atrasados:
+                    st.warning(f"⚠️ ATRASADOS (1.5x): {' '.join(f'{n:02d}' for n in atrasados)}")
             
             # ALERTA CICLO VIRANDO - v84.1
             virando = False; msg_alerta = ""
@@ -234,15 +251,36 @@ with tabs[1]:
     if lot not in st.session_state.ciclos: st.error("Atualize ciclo"); st.stop()
     ciclo=st.session_state.ciclos[lot]
     if st.button("🎯 Gerar 3 Jogos REAIS", type="primary"):
-        # ajusta automaticamente pelo ciclo
+        # v85.1 - ajusta automaticamente pelo ciclo + velocidade
         ca = ciclo.get("ciclo_atual",0)
         ideal = ciclos_ideais.get(lot,(0,0))
         if ca>0 and ideal[1]>0:
-            if ca < ideal[0]:  # início - prioriza frios
-                focos = [max(10,focus-20), max(10,focus-10), focus]
-                modo = "Início de ciclo → mais frios"
-            elif ca > ideal[1]:  # fim - prioriza quentes
-                focos = [focus, min(95,focus+10), min(95,focus+20)]
+            # velocidade do ciclo
+            hist = st.session_state.historico_ciclos.get(lot, [])
+            vel_media = (ideal[0]+ideal[1])/2
+            if len(hist) >= 3:
+                vel_media = sum(h["ciclo_atual"] for h in hist[-3:])/3
+            velocidade = ca / vel_media if vel_media>0 else 1
+            
+            if ca < ideal[0]*0.8:  # início forte
+                base = max(10,focus-25)
+                focos = [base, base+10, base+20]
+                modo = f"Início de ciclo ({ca}/{ideal[0]}-{ideal[1]}) → DNA brecha frios"
+            elif ca > ideal[1]*1.1:  # fim atrasado
+                base = min(90,focus+15)
+                focos = [base-10, base, min(95,base+10)]
+                modo = f"Fim atrasado ({ca}>{ideal[1]}) → força quentes"
+            else:
+                if velocidade < 0.85:
+                    focos = [max(15,focus-10), focus, min(85,focus+5)]
+                    modo = f"Ciclo rápido (vel {velocidade:.1f}x) → equilibrado leve"
+                elif velocidade > 1.15:
+                    focos = [max(20,focus-5), min(90,focus+10), min(95,focus+20)]
+                    modo = f"Ciclo lento (vel {velocidade:.1f}x) → mais quentes"
+                else:
+                    focos = [max(10,focus-15), focus, min(95,focus+15)]
+                    modo = "Meio de ciclo → equilibrado"
+        else:
                 modo = "Fim de ciclo → mais quentes"
             else:  # meio
                 focos = [max(10,focus-15), focus, min(95,focus+15)]
