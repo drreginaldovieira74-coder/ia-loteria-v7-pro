@@ -38,7 +38,6 @@ with st.sidebar:
     st.markdown(f'<div class="focus-box"><b>{nivel}</b> {focus}%</div>', unsafe_allow_html=True)
 
 cfg = configs[lot]
-
 def buscar_ciclo_real(loteria):
     try:
         api_nome = configs[loteria]["api"]; max_n = configs[loteria]["max"]
@@ -90,8 +89,7 @@ def gerar(focus_pct, ciclo):
     for d in dna_prio:
         if len(jogo) >= nq: break
         if d <= cfg["max"] and d not in jogo: jogo.append(d)
-    pool = ciclo["q"] if focus_pct > 50 else ciclo["f"] + ciclo["n"]
-    random.shuffle(pool)
+    pool = ciclo["q"] if focus_pct > 50 else ciclo["f"] + ciclo["n"]; random.shuffle(pool)
     for n in pool:
         if len(jogo) >= qtd: break
         if n not in jogo: jogo.append(n)
@@ -100,9 +98,21 @@ def gerar(focus_pct, ciclo):
         if n not in jogo: jogo.append(n)
     return sorted(jogo[:qtd])
 
+def buscar_ao_vivo():
+    try:
+        resultados = []
+        for nome, cfg_l in configs.items():
+            try:
+                base = f"https://servicebus2.caixa.gov.br/portaldeloterias/api/{cfg_l['api']}"
+                d = requests.get(base, timeout=5).json()
+                acumulado = d.get("acumulado", False); prox = d.get("dataProximoConcurso",""); premio = d.get("valorEstimadoProximoConcurso",0)
+                resultados.append({"Loteria":nome,"Concurso":d.get("numero",0),"Acumulou":"SIM" if acumulado else "NÃO","Prêmio_fmt":f"R$ {premio:,.2f}".replace(",","X").replace(".",",").replace("X","."),"Próximo Sorteio":prox,"acumulado_bool":acumulado})
+            except: continue
+        return resultados
+    except: return []
+
 st.markdown('<h1 class="main-title">🎯 LOTOELITE</h1>', unsafe_allow_html=True)
 tabs = st.tabs(["🎲 GERADOR","📊 MEUS JOGOS","🔄 CICLO","📈 ESTATÍSTICAS","🧠 IA","💡 DICAS","🎯 DNA","⚙️ CONFIG","📚 HISTÓRICO","🔬 BACKTEST","💰 PREÇOS","📤 EXPORTAR","🔴 AO VIVO","🎯 ESPECIAIS"])
-
 ciclo = buscar_ciclo_real(lot)
 
 with tabs[0]:
@@ -120,11 +130,9 @@ with tabs[2]:
     with c2: st.markdown("**❄️ FRIOS**"); st.write(", ".join(f"{n:02d}" for n in ciclo["f"]))
     with c3: st.markdown("**➖ NEUTROS**"); st.write(", ".join(f"{n:02d}" for n in ciclo["n"][:10])+"...")
     st.markdown("---")
-    # ITEM 7 - RADAR
     hist = st.session_state.historico_ciclos.get(lot, []); valores = [h["ciclo_atual"] for h in hist]
     if len(valores) >= 2:
-        ult = valores[-2:]
-        tendencia = "🚀 ACELERANDO" if ult[1] < ult[0] else "🐢 DESACELERANDO" if ult[1] > ult[0] else "➡️ ESTÁVEL"
+        ult = valores[-2:]; tendencia = "🚀 ACELERANDO" if ult[1] < ult[0] else "🐢 DESACELERANDO" if ult[1] > ult[0] else "➡️ ESTÁVEL"
         st.markdown(f"**Radar Velocidade:** {tendencia} | Histórico: {len(valores)} ciclos")
     else:
         st.markdown(f"**Radar Velocidade:** Coletando dados... ({len(valores)}/2)")
@@ -133,10 +141,90 @@ with tabs[2]:
         if falta > 0: st.info(f"🔮 Previsão: faltam ~{falta} concurso(s) para virada (média {media_hist:.1f})")
         elif falta == 0: st.warning("🔮 Previsão: PONTO DE VIRADA AGORA")
         else: st.error(f"⚠️ Ciclo estendido! Atrasado em {abs(falta)} concurso(s)")
-
-# (as outras abas continuam iguais da sua v85.3 - copie do seu arquivo original se quiser todas)
 with tabs[1]:
-    st.subheader("Meus Jogos")
+    st.subheader("📊 Meus Jogos");
     if st.session_state.historico:
-        for h in reversed(st.session_state.historico[-10:]):
-            st.write(f"{h['data']} - {h['lot']}: {'-'.join(f'{n:02d}' for n in h['j'])}")
+        for h in reversed(st.session_state.historico[-20:]):
+            st.write(f"{h['data']} - {h['lot']}: {'-'.join(f'{n:02d}' for n in h['j'])} (Focus {h['f']}%)")
+    else: st.info("Nenhum jogo gerado ainda")
+
+with tabs[3]:
+    st.subheader("📈 Estatísticas");
+    if ciclo["freq"]:
+        df = pd.DataFrame([{"Dezena":k,"Freq":v} for k,v in ciclo["freq"].items()]).sort_values("Freq",ascending=False)
+        st.dataframe(df.head(10), use_container_width=True)
+
+with tabs[4]:
+    st.subheader("🧠 IA Análise"); st.info(f"Focus {focus}% - {nivel}. Ciclo atual: {ciclo['ciclo_atual']}")
+
+with tabs[5]:
+    st.subheader("💡 Dicas"); st.write("• Use Focus 40% em início de ciclo • Focus 70% em final de ciclo")
+
+with tabs[6]:
+    st.subheader("🎯 DNA"); dna_lista = DNAS.get(lot,[]); st.write(", ".join(f"{n:02d}" for n in dna_lista))
+
+with tabs[7]:
+    st.subheader("⚙️ Config"); st.json({"Loteria":lot,"Focus":focus,"Ciclo":ciclo["ciclo_atual"]})
+
+with tabs[8]:
+    st.subheader("📚 Histórico Ciclos")
+    hist = st.session_state.historico_ciclos.get(lot, [])
+    if hist:
+        dfh = pd.DataFrame(hist); st.dataframe(dfh, use_container_width=True)
+    else: st.info("Sem histórico ainda")
+
+with tabs[9]:
+    st.subheader("🔬 Backtest")
+    if st.button("Rodar Backtest (últimos 10)"):
+        resultados = []
+        try:
+            base = f"https://servicebus2.caixa.gov.br/portaldeloterias/api/{cfg['api']}"
+            latest = requests.get(base, timeout=5).json(); num = latest.get("numero",0)
+            for i in range(num, max(num-10,0), -1):
+                r = requests.get(f"{base}/{i}", timeout=3)
+                if r.status_code==200:
+                    d = r.json(); dz = d.get("listaDezenas") or d.get("dezenas") or []; resultados.append({"dezenas":set(int(x) for x in dz)})
+        except: pass
+        if resultados:
+            acertos = []
+            for res in resultados:
+                jogo = set(gerar(focus, ciclo)); acertos.append(len(jogo & res["dezenas"]))
+            st.success(f"Média: {sum(acertos)/len(acertos):.2f} acertos | Melhor: {max(acertos)}")
+
+with tabs[10]:
+    st.subheader("💰 Preços")
+    dfp=pd.DataFrame([{"Loteria":k,"Dezenas":f"{v['qtd']}/{v['max']}","Preço":f"R$ {v['preco']:.2f}"} for k,v in configs.items()]); st.dataframe(dfp,use_container_width=True)
+
+with tabs[11]:
+    st.subheader("📤 Exportar")
+    if st.session_state.historico:
+        df=pd.DataFrame(st.session_state.historico); df["Jogo"]=df["j"].apply(lambda x:"-".join(f"{n:02d}" for n in x))
+        csv=df[["data","lot","f","Jogo"]].to_csv(index=False).encode('utf-8'); st.download_button("📥 Baixar CSV",csv,"lotoelite.csv")
+
+with tabs[12]:
+    st.subheader("🔴 AO VIVO - Loterias Caixa")
+    if st.button("🔄 Atualizar agora", type="primary"):
+        with st.spinner("Buscando..."): st.session_state.ao_vivo = buscar_ao_vivo()
+    if not st.session_state.ao_vivo: st.session_state.ao_vivo = buscar_ao_vivo()
+    acumuladas = [x for x in st.session_state.ao_vivo if x["acumulado_bool"]]
+    if acumuladas:
+        st.markdown("### 🔥 ACUMULADAS")
+        for a in acumuladas:
+            st.markdown(f'<div class="acumulada"><b>{a["Loteria"]}</b> - Concurso {a["Concurso"]}<br>💰 {a["Prêmio_fmt"]}<br><b>{a["Acumulou"]}</b></div>', unsafe_allow_html=True)
+    df_vivo = pd.DataFrame([{"Loteria":x["Loteria"],"Concurso":x["Concurso"],"Acumulou":x["Acumulou"],"Prêmio":x["Prêmio_fmt"]} for x in st.session_state.ao_vivo])
+    st.dataframe(df_vivo, use_container_width=True, hide_index=True)
+
+with tabs[13]:
+    st.subheader("🎯 Hub Especiais")
+    col1, col2 = st.columns(2)
+    with col1:
+        st.markdown("### 🌽 Quina São João")
+        if st.button("🎯 Gerar 3 jogos São João"):
+            for i in range(3):
+                jogo = sorted(random.sample(range(1,81),5)); st.success(f"Jogo {i+1}: {'-'.join(f'{n:02d}' for n in jogo)}")
+    with col2:
+        st.markdown("### 🎆 Mega da Virada")
+        if st.button("🎯 Gerar 3 jogos Virada"):
+            for i in range(3):
+                jogo = sorted(random.sample(range(1,61),6)); st.success(f"Jogo {i+1}: {'-'.join(f'{n:02d}' for n in jogo)}")
+
