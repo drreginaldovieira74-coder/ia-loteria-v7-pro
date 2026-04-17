@@ -133,7 +133,7 @@ def gerar(focus_pct, ciclo):
     if len(jogo) < qtd:
         disponiveis = [n for n in pool if n not in jogo]
         if disponiveis:
-            jogo.extend(random.sample(disponiveis, min(qtd - len(jogo), len(disponiveis))))
+            jogo.extend(random.sample(disponiveis, min(qtd - len(jogo), len(disponiveis)))
     
     while len(jogo) < qtd:
         n = random.randint(1, cfg["max"])
