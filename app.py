@@ -4,7 +4,7 @@ import random
 from datetime import datetime
 import requests
 
-st.set_page_config(page_title="LOTOELITE v85.3", layout="wide", page_icon="🎯")
+st.set_page_config(page_title="LOTOELITE v85.4", layout="wide", page_icon="🎯")
 
 st.markdown("""
 <style>
@@ -61,8 +61,8 @@ DNAS = {
 }
 
 with st.sidebar:
-    st.markdown("### 🎯 LOTOELITE v85.3")
-    st.markdown('<div class="ia-box">🧠 v85.3 AUTO-FOCUS</div>', unsafe_allow_html=True)
+    st.markdown("### 🎯 LOTOELITE v85.4")
+    st.markdown('<div class="ia-box">🧠 v85.4 VIRADA</div>', unsafe_allow_html=True)
     lot = st.selectbox("Loteria", list(configs.keys()))
     focus = st.slider("Focus %", 0, 100, st.session_state.perfil["focus"], 5)
     st.session_state.perfil["focus"] = focus
@@ -250,6 +250,14 @@ with tabs[0]:
                         elif ult3[2] > ult3[1] > ult3[0]:
                             tendencia = "🐢 DESACELERANDO (ciclos mais longos)"
                         st.markdown(f"**Radar Velocidade:** {tendencia}")
+                    # v85.4 - Item 7: Alerta de Virada Prevista
+                    if len(valores) >= 2:
+                        previsao = int(media - valores[-1])
+                        if previsao > 0:
+                            st.info(f"🔮 Previsão: faltam ~{previsao} concurso(s) para virada (base: média {media:.1f})")
+                        else:
+                            st.warning(f"⚠️ Ciclo estendido! Já passou da média em {abs(previsao)} concurso(s)")
+
         c1,c2,c3=st.columns(3)
         with c1: st.markdown("**🔥 QUENTES**"); st.code(" ".join(f"{n:02d}" for n in c["q"]))
         with c2: st.markdown("**❄️ FRIOS**"); st.code(" ".join(f"{n:02d}" for n in c["f"]))
