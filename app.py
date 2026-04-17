@@ -4,7 +4,7 @@ import random
 from datetime import datetime
 import requests
 
-st.set_page_config(page_title="LOTOELITE v85.1", layout="wide", page_icon="🎯")
+st.set_page_config(page_title="LOTOELITE v85.2", layout="wide", page_icon="🎯")
 
 st.markdown("""
 <style>
@@ -61,8 +61,8 @@ DNAS = {
 }
 
 with st.sidebar:
-    st.markdown("### 🎯 LOTOELITE v85.1")
-    st.markdown('<div class="ia-box">🧠 v85.1 IA CICLO+</div>', unsafe_allow_html=True)
+    st.markdown("### 🎯 LOTOELITE v85.2")
+    st.markdown('<div class="ia-box">🧠 v85.2 RADAR+</div>', unsafe_allow_html=True)
     lot = st.selectbox("Loteria", list(configs.keys()))
     focus = st.slider("Focus %", 0, 100, st.session_state.perfil["focus"], 5)
     st.session_state.perfil["focus"] = focus
@@ -206,7 +206,7 @@ with tabs[0]:
             elif ca <= ideal[1]: status="🟡 Meio"; dica="Equilibre quentes/neutros"
             else: status="🔴 Fim"; dica="Priorize QUENTES"
             st.info(f"**Ciclo atual: {ca} concursos** | Ideal: {ideal[0]}-{ideal[1]} | {status} → {dica}")
-            # v85.1 - anti-ciclo: números atrasados
+            # v85.1 - anti-ciclo
             freq = c.get("freq",{})
             if freq:
                 media = sum(freq.values())/len(freq)
@@ -241,6 +241,15 @@ with tabs[0]:
                     media = sum(valores)/len(valores)
                     mais_freq = max(set(valores), key=valores.count)
                     st.caption(f"Média: {media:.1f} | Mais frequente: {mais_freq} concursos | Ideal: {ideal[0]}-{ideal[1]}")
+                    # v85.2 - Item 5: Radar de Velocidade
+                    if len(valores) >= 3:
+                        ult3 = valores[-3:]
+                        tendencia = "➡️ ESTÁVEL"
+                        if ult3[2] < ult3[1] < ult3[0]:
+                            tendencia = "🚀 ACELERANDO (ciclos mais curtos)"
+                        elif ult3[2] > ult3[1] > ult3[0]:
+                            tendencia = "🐢 DESACELERANDO (ciclos mais longos)"
+                        st.markdown(f"**Radar Velocidade:** {tendencia}")
         c1,c2,c3=st.columns(3)
         with c1: st.markdown("**🔥 QUENTES**"); st.code(" ".join(f"{n:02d}" for n in c["q"]))
         with c2: st.markdown("**❄️ FRIOS**"); st.code(" ".join(f"{n:02d}" for n in c["f"]))
@@ -255,18 +264,16 @@ with tabs[1]:
         ca = ciclo.get("ciclo_atual",0)
         ideal = ciclos_ideais.get(lot,(0,0))
         if ca>0 and ideal[1]>0:
-            # velocidade do ciclo
             hist = st.session_state.historico_ciclos.get(lot, [])
             vel_media = (ideal[0]+ideal[1])/2
             if len(hist) >= 3:
                 vel_media = sum(h["ciclo_atual"] for h in hist[-3:])/3
             velocidade = ca / vel_media if vel_media>0 else 1
-            
-            if ca < ideal[0]*0.8:  # início forte
+            if ca < ideal[0]*0.8:
                 base = max(10,focus-25)
                 focos = [base, base+10, base+20]
                 modo = f"Início de ciclo ({ca}/{ideal[0]}-{ideal[1]}) → DNA brecha frios"
-            elif ca > ideal[1]*1.1:  # fim atrasado
+            elif ca > ideal[1]*1.1:
                 base = min(90,focus+15)
                 focos = [base-10, base, min(95,base+10)]
                 modo = f"Fim atrasado ({ca}>{ideal[1]}) → força quentes"
