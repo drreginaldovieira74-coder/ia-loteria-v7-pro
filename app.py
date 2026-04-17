@@ -4,7 +4,7 @@ import random
 from datetime import datetime
 import requests
 
-st.set_page_config(page_title="LOTOELITE v85", layout="wide", page_icon="🎯")
+st.set_page_config(page_title="LOTOELITE v84.3 DNA", layout="wide", page_icon="🎯")
 
 st.markdown("""
 <style>
@@ -61,8 +61,8 @@ DNAS = {
 }
 
 with st.sidebar:
-    st.markdown("### 🎯 LOTOELITE v85")
-    st.markdown('<div class="ia-box">🧠 v85 IA CICLO+</div>', unsafe_allow_html=True)
+    st.markdown("### 🎯 LOTOELITE v84.3")
+    st.markdown('<div class="ia-box">🧠 v84.3 DNA ATIVO</div>', unsafe_allow_html=True)
     lot = st.selectbox("Loteria", list(configs.keys()))
     focus = st.slider("Focus %", 0, 100, st.session_state.perfil["focus"], 5)
     st.session_state.perfil["focus"] = focus
@@ -178,7 +178,7 @@ def buscar_ao_vivo():
             dados.append({"Loteria":nome,"Concurso":"-","Acumulou":"Erro","Próximo Prêmio":0,"Prêmio_fmt":"-","Próximo Sorteio":"-","acumulado_bool":False})
     return sorted(dados, key=lambda x: x["Próximo Prêmio"], reverse=True)
 
-st.markdown('<div class="main-title">LOTOELITE v85</div>', unsafe_allow_html=True)
+st.markdown('<div class="main-title">LOTOELITE</div>', unsafe_allow_html=True)
 
 tabs = st.tabs(["📊 CICLO","🤖 IA 3","🔒 FECHAMENTO","🔒 FECH 21","📍 POSIÇÃO","📈 GRÁFICO","🎲 BOLÕES","🏆 RESULTADOS","💾 MEUS JOGOS","🔍 CONFERIDOR","🧠 PERFIL","💰 PREÇOS","📥 EXPORTAR","🔴 AO VIVO","🎯 HUB ESPECIAIS"])
 
@@ -238,34 +238,18 @@ with tabs[1]:
         ca = ciclo.get("ciclo_atual",0)
         ideal = ciclos_ideais.get(lot,(0,0))
         if ca>0 and ideal[1]>0:
-            # v85 - velocidade do ciclo
-            hist = st.session_state.historico_ciclos.get(lot, [])
-            vel_media = (ideal[0]+ideal[1])/2
-            if len(hist) >= 3:
-                ultimos = [h["ciclo_atual"] for h in hist[-3:]]
-                vel_media = sum(ultimos)/len(ultimos)
-            velocidade = ca / vel_media if vel_media>0 else 1
-            
-            if ca < ideal[0] * 0.8:  # início forte
-                base = max(10, focus-25)
-                focos = [base, base+10, base+20]
-                modo = f"Início de ciclo ({ca}/{ideal[0]}-{ideal[1]}) → prioriza frios"
-            elif ca > ideal[1] * 1.1:  # fim atrasado
-                base = min(90, focus+15)
-                focos = [base-10, base, min(95, base+10)]
-                modo = f"Fim de ciclo atrasado ({ca}>{ideal[1]}) → força quentes"
+            if ca < ideal[0]:  # início - prioriza frios
+                focos = [max(10,focus-20), max(10,focus-10), focus]
+                modo = "Início de ciclo → mais frios"
+            elif ca > ideal[1]:  # fim - prioriza quentes
+                focos = [focus, min(95,focus+10), min(95,focus+20)]
+                modo = "Fim de ciclo → mais quentes"
             else:  # meio
-                if velocidade < 0.85:  # ciclo rápido
-                    focos = [max(15,focus-10), focus, min(85,focus+5)]
-                    modo = f"Ciclo rápido (vel {velocidade:.1f}x) → equilibrado leve"
-                elif velocidade > 1.15:  # ciclo lento
-                    focos = [max(20,focus-5), min(90,focus+10), min(95,focus+20)]
-                    modo = f"Ciclo lento (vel {velocidade:.1f}x) → mais quentes"
-                else:
-                    focos = [max(10,focus-15), focus, min(95,focus+15)]
-                    modo = "Meio de ciclo → equilibrado"
+                focos = [max(10,focus-15), focus, min(95,focus+15)]
+                modo = "Meio de ciclo → equilibrado"
         else:
             focos = [max(10,focus-15), focus, min(95,focus+15)]; modo = "Ciclo padrão"
+        st.caption(f"IA ajustada: {modo}")
         novas=[]
         for f in focos:
             jogo=gerar(f,ciclo); nq=len(set(jogo)&set(ciclo["q"])); novas.append({"f":f,"j":jogo,"nq":nq})
