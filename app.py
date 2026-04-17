@@ -38,6 +38,7 @@ with st.sidebar:
     st.markdown(f'<div class="focus-box"><b>{nivel}</b> {focus}%</div>', unsafe_allow_html=True)
 
 cfg = configs[lot]
+
 def buscar_ciclo_real(loteria):
     try:
         api_nome = configs[loteria]["api"]; max_n = configs[loteria]["max"]
@@ -116,12 +117,28 @@ tabs = st.tabs(["🎲 GERADOR","📊 MEUS JOGOS","🔄 CICLO","📈 ESTATÍSTICA
 ciclo = buscar_ciclo_real(lot)
 
 with tabs[0]:
-    st.subheader(f"Gerador {lot}"); col1,col2 = st.columns([2,1])
+    st.subheader(f"Gerador {lot}")
+    col1, col2 = st.columns([2,1])
     with col1:
-        if st.button("🎲 GERAR JOGO", type="primary", use_container_width=True):
-            jogo = gerar(focus, ciclo); st.session_state.historico.append({"data":datetime.now().strftime("%d/%m %H:%M"),"lot":lot,"j":jogo,"f":focus,"p":nivel})
-            st.success(f"### {' - '.join(f'{n:02d}' for n in jogo)}")
-    with col2: st.metric("Ciclo Atual", f"{ciclo['ciclo_atual']} conc.")
+        if st.button("🎲 GERAR 3 JOGOS", type="primary", use_container_width=True):
+            st.markdown("### 🎯 Jogos Gerados:")
+            for i in range(3):
+                jogo = gerar(focus, ciclo)
+                st.session_state.historico.append({"data":datetime.now().strftime("%d/%m %H:%M"),"lot":lot,"j":jogo,"f":focus,"p":nivel})
+                numeros = ' - '.join(f'{n:02d}' for n in jogo)
+                st.success(f"**JOGO {i+1}:** {numeros}")
+                if i < 2: st.markdown("---")
+    with col2:
+        st.metric("Ciclo Atual", f"{ciclo['ciclo_atual']} conc.")
+        st.markdown(f"**Focus:** {nivel}")
+        st.markdown(f"**{focus}%**")
+
+with tabs[1]:
+    st.subheader("📊 Meus Jogos");
+    if st.session_state.historico:
+        for h in reversed(st.session_state.historico[-20:]):
+            st.write(f"{h['data']} - {h['lot']}: {'-'.join(f'{n:02d}' for n in h['j'])} (Focus {h['f']}%)")
+    else: st.info("Nenhum jogo gerado ainda")
 
 with tabs[2]:
     st.subheader("🔄 Análise de Ciclo"); st.markdown(f'<div class="real-box"><b>FASE: {ciclo["fase"]}</b> | {ciclo["h"]} | Atualizado {ciclo["atualizado"]}</div>', unsafe_allow_html=True)
@@ -141,12 +158,6 @@ with tabs[2]:
         if falta > 0: st.info(f"🔮 Previsão: faltam ~{falta} concurso(s) para virada (média {media_hist:.1f})")
         elif falta == 0: st.warning("🔮 Previsão: PONTO DE VIRADA AGORA")
         else: st.error(f"⚠️ Ciclo estendido! Atrasado em {abs(falta)} concurso(s)")
-with tabs[1]:
-    st.subheader("📊 Meus Jogos");
-    if st.session_state.historico:
-        for h in reversed(st.session_state.historico[-20:]):
-            st.write(f"{h['data']} - {h['lot']}: {'-'.join(f'{n:02d}' for n in h['j'])} (Focus {h['f']}%)")
-    else: st.info("Nenhum jogo gerado ainda")
 
 with tabs[3]:
     st.subheader("📈 Estatísticas");
@@ -227,4 +238,3 @@ with tabs[13]:
         if st.button("🎯 Gerar 3 jogos Virada"):
             for i in range(3):
                 jogo = sorted(random.sample(range(1,61),6)); st.success(f"Jogo {i+1}: {'-'.join(f'{n:02d}' for n in jogo)}")
-
