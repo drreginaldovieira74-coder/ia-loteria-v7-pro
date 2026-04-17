@@ -3,7 +3,6 @@ import pandas as pd
 import random
 import requests
 from datetime import datetime
-import plotly.express as px
 
 st.set_page_config(page_title="LOTOELITE v86.2", layout="wide", page_icon="🎯")
 
@@ -130,8 +129,7 @@ with tabs[2]:
     st.subheader("Análise de Ciclo - RESTAURADO")
     if dados["status"]=="online":
         df_ciclo = pd.DataFrame([{"Concurso":d["concurso"],"Qtd Dezenas":len(d["dezenas"])} for d in dados["draws"][:12]])
-        fig = px.bar(df_ciclo, x="Concurso", y="Qtd Dezenas", title="Últimos 12 concursos")
-        st.plotly_chart(fig, use_container_width=True)
+        st.bar_chart(df_ciclo.set_index("Concurso"))
         fase = "Início" if dados["ciclo"]<=4 else "Meio" if dados["ciclo"]<=8 else "Fim"
         st.info(f"**Fase do ciclo: {fase}** ({dados['ciclo']} concursos sem fechar)")
         c1,c2,c3 = st.columns(3)
