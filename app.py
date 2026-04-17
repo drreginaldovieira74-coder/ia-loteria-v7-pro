@@ -48,6 +48,18 @@ configs = {
     "+Milionária": {"max":50,"qtd":6,"preco":6.00, "api":"maismilionaria"},
 }
 
+DNAS = {
+    "Lotofácil": [4,6,10,14,17,19,20,24,25],
+    "Mega-Sena": [14,32,37,39,42],
+    "Quina": [4,10,14,19,20,25,32,37],
+    "Dupla Sena": [14,19,25,32,37,42],
+    "Timemania": [4,10,14,20,25,32,44],
+    "Lotomania": [4,6,10,14,17,19,20,24,25,32,37,39],
+    "Dia de Sorte": [4,6,10,14,17,19,20],
+    "Super Sete": [4,6,10,14,17,19,20],
+    "+Milionária": [14,19,25,32,37,42],
+}
+
 with st.sidebar:
     st.markdown("### 🎯 LOTOELITE")
     st.markdown('<div class="ia-box">🧠 v79g IA CICLO</div>', unsafe_allow_html=True)
@@ -112,33 +124,34 @@ def gerar(focus_pct, ciclo):
     jogo = []
     dna = DNAS.get(lot, [])
     
-    if nq > 0:
-        dna_quentes = [n for n in dna if n in ciclo["q"]]
-        if dna_quentes:
-            pegar = min(len(dna_quentes), nq)
-            jogo.extend(random.sample(dna_quentes, pegar))
-        restantes = nq - len(jogo)
-        if restantes > 0:
-            outros_q = [n for n in ciclo["q"] if n not in jogo]
-            if outros_q:
-                jogo.extend(random.sample(outros_q, min(restantes, len(outros_q))))
+    # 1. pega DNA que está nos quentes primeiro
+    for num in dna:
+        if len(jogo) >= nq:
+            break
+        if num in ciclo["q"] and num not in jogo:
+            jogo.append(num)
     
+    # 2. completa quentes normais
+    while len(jogo) < nq:
+        candidatos = [n for n in ciclo["q"] if n not in jogo]
+        if not candidatos:
+            break
+        jogo.append(random.choice(candidatos))
+    
+    # 3. completa com resto do DNA
+    for num in dna:
+        if len(jogo) >= qtd:
+            break
+        if num not in jogo and num <= cfg["max"]:
+            jogo.append(num)
+    
+    # 4. completa com frios+neutros
     pool = ciclo["f"] + ciclo["n"]
-    if len(jogo) < qtd:
-        dna_rest = [n for n in dna if n not in jogo and n <= cfg["max"]]
-        if dna_rest:
-            pegar_dna = min(len(dna_rest), qtd - len(jogo))
-            jogo.extend(random.sample(dna_rest, pegar_dna))
-    
-    if len(jogo) < qtd:
-        disponiveis = [n for n in pool if n not in jogo]
-        if disponiveis:
-            jogo.extend(random.sample(disponiveis, min(qtd - len(jogo), len(disponiveis)))
-    
     while len(jogo) < qtd:
-        n = random.randint(1, cfg["max"])
-        if n not in jogo:
-            jogo.append(n)
+        candidatos = [n for n in pool if n not in jogo]
+        if not candidatos:
+            candidatos = [n for n in range(1, cfg["max"]+1) if n not in jogo]
+        jogo.append(random.choice(candidatos))
     
     return sorted(jogo[:qtd])
 
