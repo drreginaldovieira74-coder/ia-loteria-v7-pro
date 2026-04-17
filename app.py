@@ -107,32 +107,39 @@ def buscar_ciclo_real(loteria):
         neutros=sorted([x for x in resto if x not in frios]); return {"q":quentes,"f":frios,"n":neutros,"fase":"OFFLINE","h":"Random","freq":{},"ciclo_atual":0}
 
 def gerar(focus_pct, ciclo):
-    qtd=cfg["qtd"]; nq=int(qtd*focus_pct/100); jogo=[]
+    qtd = cfg["qtd"]
+    nq = int(qtd * focus_pct / 100)
+    jogo = []
     dna = DNAS.get(lot, [])
-    # Prioriza DNA nos quentes
-    if nq>0:
+    
+    if nq > 0:
         dna_quentes = [n for n in dna if n in ciclo["q"]]
         if dna_quentes:
             pegar = min(len(dna_quentes), nq)
-            jogo += random.sample(dna_quentes, pegar)
+            jogo.extend(random.sample(dna_quentes, pegar))
         restantes = nq - len(jogo)
         if restantes > 0:
             outros_q = [n for n in ciclo["q"] if n not in jogo]
             if outros_q:
-                jogo += random.sample(outros_q, min(restantes, len(outros_q)))
-    pool=ciclo["f"]+ciclo["n"]
-    if len(jogo)<qtd:
+                jogo.extend(random.sample(outros_q, min(restantes, len(outros_q))))
+    
+    pool = ciclo["f"] + ciclo["n"]
+    if len(jogo) < qtd:
         dna_rest = [n for n in dna if n not in jogo and n <= cfg["max"]]
         if dna_rest:
             pegar_dna = min(len(dna_rest), qtd - len(jogo))
-            jogo += random.sample(dna_rest, pegar_dna)
-        if len(jogo) < qtd:
-            disponiveis = [n for n in pool if n not in jogo]
-            if disponiveis:
-                jogo += random.sample(disponiveis, min(qtd-len(jogo), len(disponiveis)))
-    while len(jogo)<qtd:
-        n=random.randint(1,cfg["max"])
-        if n not in jogo: jogo.append(n)
+            jogo.extend(random.sample(dna_rest, pegar_dna))
+    
+    if len(jogo) < qtd:
+        disponiveis = [n for n in pool if n not in jogo]
+        if disponiveis:
+            jogo.extend(random.sample(disponiveis, min(qtd - len(jogo), len(disponiveis))))
+    
+    while len(jogo) < qtd:
+        n = random.randint(1, cfg["max"])
+        if n not in jogo:
+            jogo.append(n)
+    
     return sorted(jogo[:qtd])
 
 def buscar_ao_vivo():
