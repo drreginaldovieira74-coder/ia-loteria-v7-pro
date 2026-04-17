@@ -4,7 +4,7 @@ import random
 from datetime import datetime
 import requests
 
-st.set_page_config(page_title="LOTOELITE", layout="wide", page_icon="🎯")
+st.set_page_config(page_title="LOTOELITE v84.3 DNA", layout="wide", page_icon="🎯")
 
 st.markdown("""
 <style>
@@ -108,9 +108,29 @@ def buscar_ciclo_real(loteria):
 
 def gerar(focus_pct, ciclo):
     qtd=cfg["qtd"]; nq=int(qtd*focus_pct/100); jogo=[]
-    if nq>0: jogo+=random.sample(ciclo["q"], min(nq, len(ciclo["q"])))
+    dna = DNAS.get(lot, [])
+    # Prioriza DNA nos quentes
+    if nq>0:
+        # primeiro tenta pegar do DNA que está nos quentes
+        dna_quentes = [n for n in dna if n in ciclo["q"]]
+        if dna_quentes:
+            pegar = min(len(dna_quentes), nq, len(ciclo["q"]))
+            jogo += random.sample(dna_quentes, min(pegar, len(dna_quentes)))
+        # completa com outros quentes
+        restantes = nq - len(jogo)
+        if restantes > 0:
+            outros_q = [n for n in ciclo["q"] if n not in jogo]
+            if outros_q:
+                jogo += random.sample(outros_q, min(restantes, len(outros_q)))
     pool=ciclo["f"]+ciclo["n"]
-    if len(jogo)<qtd: jogo+=random.sample(pool, min(qtd-len(jogo), len(pool)))
+    if len(jogo)<qtd: 
+        # tenta completar com DNA restante
+        dna_rest = [n for n in dna if n not in jogo and n <= cfg["max"]]
+        if dna_rest and len(jogo) < qtd:
+            pegar_dna = min(len(dna_rest), qtd - len(jogo))
+            jogo += random.sample(dna_rest, pegar_dna)
+        if len(jogo) < qtd:
+            jogo += random.sample([n for n in pool if n not in jogo], min(qtd-len(jogo), len([n for n in pool if n not in jogo])))
     while len(jogo)<qtd:
         n=random.randint(1,cfg["max"])
         if n not in jogo: jogo.append(n)
@@ -139,7 +159,7 @@ def buscar_ao_vivo():
             dados.append({"Loteria":nome,"Concurso":"-","Acumulou":"Erro","Próximo Prêmio":0,"Prêmio_fmt":"-","Próximo Sorteio":"-","acumulado_bool":False})
     return sorted(dados, key=lambda x: x["Próximo Prêmio"], reverse=True)
 
-st.markdown('<div class="main-title">LOTOELITE</div>', unsafe_allow_html=True)
+st.markdown('<div class="main-title">LOTOELITE v84.3 DNA</div>', unsafe_allow_html=True)
 
 tabs = st.tabs(["📊 CICLO","🤖 IA 3","🔒 FECHAMENTO","🔒 FECH 21","📍 POSIÇÃO","📈 GRÁFICO","🎲 BOLÕES","🏆 RESULTADOS","💾 MEUS JOGOS","🔍 CONFERIDOR","🧠 PERFIL","💰 PREÇOS","📥 EXPORTAR","🔴 AO VIVO","🎯 HUB ESPECIAIS"])
 
