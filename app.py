@@ -24,41 +24,9 @@ if 'dados_caixa' not in st.session_state: st.session_state.dados_caixa = {}
 if 'ao_vivo' not in st.session_state: st.session_state.ao_vivo = []
 if 'historico_ciclos' not in st.session_state: st.session_state.historico_ciclos = {}
 
-ciclos_ideais = {
-    "Lotofácil": (4,6),
-    "Mega-Sena": (9,11),
-    "Quina": (14,18),
-    "Dupla Sena": (8,10),
-    "Timemania": (12,15),
-    "Lotomania": (8,12),
-    "Dia de Sorte": (4,5),
-    "Super Sete": (3,4),
-    "+Milionária": (9,12),
-}
-
-configs = {
-    "Lotofácil": {"max":25,"qtd":15,"preco":3.50, "api":"lotofacil"},
-    "Mega-Sena": {"max":60,"qtd":6,"preco":6.00, "api":"megasena"},
-    "Quina": {"max":80,"qtd":5,"preco":3.00, "api":"quina"},
-    "Dupla Sena": {"max":50,"qtd":6,"preco":3.00, "api":"duplasena"},
-    "Timemania": {"max":80,"qtd":10,"preco":3.50, "api":"timemania"},
-    "Lotomania": {"max":100,"qtd":50,"preco":3.00, "api":"lotomania"},
-    "Dia de Sorte": {"max":31,"qtd":7,"preco":2.50, "api":"diadesorte"},
-    "Super Sete": {"max":9,"qtd":7,"preco":3.00, "api":"supersete"},
-    "+Milionária": {"max":50,"qtd":6,"preco":6.00, "api":"maismilionaria"},
-}
-
-DNAS = {
-    "Lotofácil": [4,6,10,14,17,19,20,24,25],
-    "Mega-Sena": [14,32,37,39,42],
-    "Quina": [4,10,14,19,20,25,32,37],
-    "Dupla Sena": [14,19,25,32,37,42],
-    "Timemania": [4,10,14,20,25,32,44],
-    "Lotomania": [4,6,10,14,17,19,20,24,25,32,37,39],
-    "Dia de Sorte": [4,6,10,14,17,19,20],
-    "Super Sete": [4,6,10,14,17,19,20],
-    "+Milionária": [14,19,25,32,37,42],
-}
+ciclos_ideais = {"Lotofácil":(4,6),"Mega-Sena":(9,11),"Quina":(14,18),"Dupla Sena":(8,10),"Timemania":(12,15),"Lotomania":(8,12),"Dia de Sorte":(4,5),"Super Sete":(3,4),"+Milionária":(9,12)}
+configs = {"Lotofácil":{"max":25,"qtd":15,"preco":3.50,"api":"lotofacil"},"Mega-Sena":{"max":60,"qtd":6,"preco":6.00,"api":"megasena"},"Quina":{"max":80,"qtd":5,"preco":3.00,"api":"quina"},"Dupla Sena":{"max":50,"qtd":6,"preco":3.00,"api":"duplasena"},"Timemania":{"max":80,"qtd":10,"preco":3.50,"api":"timemania"},"Lotomania":{"max":100,"qtd":50,"preco":3.00,"api":"lotomania"},"Dia de Sorte":{"max":31,"qtd":7,"preco":2.50,"api":"diadesorte"},"Super Sete":{"max":9,"qtd":7,"preco":3.00,"api":"supersete"},"+Milionária":{"max":50,"qtd":6,"preco":6.00,"api":"maismilionaria"}}
+DNAS = {"Lotofácil":[4,6,10,14,17,19,20,24,25],"Mega-Sena":[14,32,37,39,42],"Quina":[4,10,14,19,20,25,32,37],"Dupla Sena":[14,19,25,32,37,42],"Timemania":[4,10,14,20,25,32,44],"Lotomania":[4,6,10,14,17,19,20,24,25,32,37,39],"Dia de Sorte":[4,6,10,14,17,19,20],"Super Sete":[4,6,10,14,17,19,20],"+Milionária":[14,19,25,32,37,42]}
 
 with st.sidebar:
     st.markdown("### 🎯 LOTOELITE v85.5")
@@ -103,14 +71,10 @@ def buscar_ciclo_real(loteria):
         quentes=sorted([n for n,_ in ordenados[:q_q]]); frios=sorted([n for n,_ in ordenados[-q_f:]])
         neutros=sorted([n for n in range(1,max_n+1) if n not in quentes and n not in frios])
         resultado = {"q":quentes,"f":frios,"n":neutros,"fase":"REAL","h":f"{buscados} concursos","freq":freq,"atualizado":datetime.now().strftime("%H:%M"),"ciclo_atual":ciclo_atual}
-        # Guarda histórico de ciclos - v84.2
-        if loteria not in st.session_state.historico_ciclos:
-            st.session_state.historico_ciclos[loteria] = []
+        if loteria not in st.session_state.historico_ciclos: st.session_state.historico_ciclos[loteria] = []
         hist = st.session_state.historico_ciclos[loteria]
-        # Adiciona só se mudou ou é o primeiro
         if not hist or hist[-1]["ciclo_atual"]!= ciclo_atual:
             hist.append({"data": datetime.now().strftime("%d/%m %H:%M"), "ciclo_atual": ciclo_atual, "concurso": num_atual})
-            # Mantém só os últimos 20
             st.session_state.historico_ciclos[loteria] = hist[-20:]
         return resultado
     except:
@@ -118,37 +82,61 @@ def buscar_ciclo_real(loteria):
         resto=[x for x in range(1,max_n+1) if x not in quentes]; frios=sorted(random.sample(resto, int(max_n*0.3)))
         neutros=sorted([x for x in resto if x not in frios]); return {"q":quentes,"f":frios,"n":neutros,"fase":"OFFLINE","h":"Random","freq":{},"ciclo_atual":0}
 
-# [O RESTO DO SEU CÓDIGO CONTINUA IGUAL... COLE AQUI DO ARQUIVO ORIGINAL A PARTIR DA LINHA 121 ATÉ O FINAL]
-# Para não ficar gigante aqui, mantenha tudo igual da sua v85.3
+def gerar(focus_pct, ciclo):
+    qtd = cfg["qtd"]; nq = int(qtd * focus_pct / 100); jogo = []; dna = DNAS.get(lot, [])
+    ca = ciclo.get("ciclo_atual",0); ideal = ciclos_ideais.get(lot,(0,0)); prioriza_frios = ca < ideal[0]*0.8 if ideal[0] else False
+    dna_q = [d for d in dna if d in ciclo["q"]]; dna_f = [d for d in dna if d in ciclo["f"]]; dna_n = [d for d in dna if d not in ciclo["q"] and d not in ciclo["f"]]
+    dna_prio = dna_f + dna_n + dna_q if prioriza_frios else dna_q + dna_n + dna_f
+    for d in dna_prio:
+        if len(jogo) >= nq: break
+        if d <= cfg["max"] and d not in jogo: jogo.append(d)
+    pool = ciclo["q"] if focus_pct > 50 else ciclo["f"] + ciclo["n"]
+    random.shuffle(pool)
+    for n in pool:
+        if len(jogo) >= qtd: break
+        if n not in jogo: jogo.append(n)
+    while len(jogo) < qtd:
+        n = random.randint(1, cfg["max"])
+        if n not in jogo: jogo.append(n)
+    return sorted(jogo[:qtd])
 
-# === IMPORTANTE: NA ABA CICLO, SUBSTITUA O BLOCO DOS QUENTES/FRIOS POR ESTE: ===
+st.markdown('<h1 class="main-title">🎯 LOTOELITE</h1>', unsafe_allow_html=True)
+tabs = st.tabs(["🎲 GERADOR","📊 MEUS JOGOS","🔄 CICLO","📈 ESTATÍSTICAS","🧠 IA","💡 DICAS","🎯 DNA","⚙️ CONFIG","📚 HISTÓRICO","🔬 BACKTEST","💰 PREÇOS","📤 EXPORTAR","🔴 AO VIVO","🎯 ESPECIAIS"])
 
-# Dentro de "with tabs[2]:" ou onde mostra o ciclo, após mostrar quentes/frios/neutros, adicione:
+ciclo = buscar_ciclo_real(lot)
 
-# --- ITEM 7 INÍCIO ---
-hist = st.session_state.historico_ciclos.get(lot, [])
-valores = [h["ciclo_atual"] for h in hist]
+with tabs[0]:
+    st.subheader(f"Gerador {lot}"); col1,col2 = st.columns([2,1])
+    with col1:
+        if st.button("🎲 GERAR JOGO", type="primary", use_container_width=True):
+            jogo = gerar(focus, ciclo); st.session_state.historico.append({"data":datetime.now().strftime("%d/%m %H:%M"),"lot":lot,"j":jogo,"f":focus,"p":nivel})
+            st.success(f"### {' - '.join(f'{n:02d}' for n in jogo)}")
+    with col2: st.metric("Ciclo Atual", f"{ciclo['ciclo_atual']} conc.")
 
-if len(valores) >= 2:
-    ult = valores[-2:]
-    if ult[1] < ult[0]:
-        tendencia = "🚀 ACELERANDO"
-    elif ult[1] > ult[0]:
-        tendencia = "🐢 DESACELERANDO"
+with tabs[2]:
+    st.subheader("🔄 Análise de Ciclo"); st.markdown(f'<div class="real-box"><b>FASE: {ciclo["fase"]}</b> | {ciclo["h"]} | Atualizado {ciclo["atualizado"]}</div>', unsafe_allow_html=True)
+    c1,c2,c3 = st.columns(3)
+    with c1: st.markdown("**🔥 QUENTES**"); st.write(", ".join(f"{n:02d}" for n in ciclo["q"]))
+    with c2: st.markdown("**❄️ FRIOS**"); st.write(", ".join(f"{n:02d}" for n in ciclo["f"]))
+    with c3: st.markdown("**➖ NEUTROS**"); st.write(", ".join(f"{n:02d}" for n in ciclo["n"][:10])+"...")
+    st.markdown("---")
+    # ITEM 7 - RADAR
+    hist = st.session_state.historico_ciclos.get(lot, []); valores = [h["ciclo_atual"] for h in hist]
+    if len(valores) >= 2:
+        ult = valores[-2:]
+        tendencia = "🚀 ACELERANDO" if ult[1] < ult[0] else "🐢 DESACELERANDO" if ult[1] > ult[0] else "➡️ ESTÁVEL"
+        st.markdown(f"**Radar Velocidade:** {tendencia} | Histórico: {len(valores)} ciclos")
     else:
-        tendencia = "➡️ ESTÁVEL"
-    st.markdown(f"**Radar Velocidade:** {tendencia} | Histórico: {len(valores)} ciclos")
-else:
-    st.markdown(f"**Radar Velocidade:** Coletando dados... ({len(valores)}/2)")
+        st.markdown(f"**Radar Velocidade:** Coletando dados... ({len(valores)}/2)")
+    if hist:
+        media_hist = sum(valores)/len(valores); ca = ciclo.get("ciclo_atual",0); falta = int(media_hist - ca)
+        if falta > 0: st.info(f"🔮 Previsão: faltam ~{falta} concurso(s) para virada (média {media_hist:.1f})")
+        elif falta == 0: st.warning("🔮 Previsão: PONTO DE VIRADA AGORA")
+        else: st.error(f"⚠️ Ciclo estendido! Atrasado em {abs(falta)} concurso(s)")
 
-if hist:
-    media_hist = sum(valores)/len(valores)
-    ca = ciclo.get("ciclo_atual",0)
-    falta = int(media_hist - ca)
-    if falta > 0:
-        st.info(f"🔮 Previsão: faltam ~{falta} concurso(s) para virada (média {media_hist:.1f})")
-    elif falta == 0:
-        st.warning("🔮 Previsão: PONTO DE VIRADA AGORA")
-    else:
-        st.error(f"⚠️ Ciclo estendido! Atrasado em {abs(falta)} concurso(s)")
-# --- ITEM 7 FIM ---
+# (as outras abas continuam iguais da sua v85.3 - copie do seu arquivo original se quiser todas)
+with tabs[1]:
+    st.subheader("Meus Jogos")
+    if st.session_state.historico:
+        for h in reversed(st.session_state.historico[-10:]):
+            st.write(f"{h['data']} - {h['lot']}: {'-'.join(f'{n:02d}' for n in h['j'])}")
