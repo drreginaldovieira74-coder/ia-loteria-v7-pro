@@ -4,7 +4,7 @@ import random
 from datetime import datetime
 import requests
 
-st.set_page_config(page_title="LOTOELITE v85.2", layout="wide", page_icon="🎯")
+st.set_page_config(page_title="LOTOELITE v85.3", layout="wide", page_icon="🎯")
 
 st.markdown("""
 <style>
@@ -61,8 +61,8 @@ DNAS = {
 }
 
 with st.sidebar:
-    st.markdown("### 🎯 LOTOELITE v85.2")
-    st.markdown('<div class="ia-box">🧠 v85.2 RADAR+</div>', unsafe_allow_html=True)
+    st.markdown("### 🎯 LOTOELITE v85.3")
+    st.markdown('<div class="ia-box">🧠 v85.3 AUTO-FOCUS</div>', unsafe_allow_html=True)
     lot = st.selectbox("Loteria", list(configs.keys()))
     focus = st.slider("Focus %", 0, 100, st.session_state.perfil["focus"], 5)
     st.session_state.perfil["focus"] = focus
@@ -259,6 +259,27 @@ with tabs[1]:
     st.subheader("IA - 3 Sugestões")
     if lot not in st.session_state.ciclos: st.error("Atualize ciclo"); st.stop()
     ciclo=st.session_state.ciclos[lot]
+    # v85.3 - Item 6: Auto-Focus Inteligente
+    col_a, col_b = st.columns([3,1])
+    with col_b:
+        auto_focus = st.toggle("🤖 Auto", value=True, help="Ajusta Focus automaticamente pelo backtest")
+    with col_a:
+        focus_manual = st.slider("🎯 Focus %", 10, 95, st.session_state.perfil["focus"], step=5, disabled=auto_focus)
+    focus = focus_manual
+    if auto_focus:
+        hist_jogos = [h for h in st.session_state.historico[-15:] if h["lot"]==lot and h.get("ac") is not None]
+        if hist_jogos:
+            bons = [h["f"] for h in hist_jogos if h["ac"] >= 11]
+            focus = int(sum(bons)/len(bons)) if bons else 40
+            st.caption(f"🤖 Auto-Focus ativo: {focus}% (baseado em {len(bons)} jogos premiados)")
+        else:
+            ca = ciclo.get("ciclo_atual",0)
+            ideal = ciclos_ideais.get(lot,(4,6))
+            if ca < ideal[0]: focus = 25
+            elif ca > ideal[1]: focus = 65
+            else: focus = 40
+            st.caption(f"🤖 Auto-Focus (ciclo): {focus}%")
+
     if st.button("🎯 Gerar 3 Jogos REAIS", type="primary"):
         # v85.1 - ajusta automaticamente pelo ciclo + velocidade
         ca = ciclo.get("ciclo_atual",0)
