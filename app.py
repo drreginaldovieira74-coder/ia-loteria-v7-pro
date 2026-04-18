@@ -3,8 +3,8 @@ import pandas as pd
 import random, requests
 from datetime import datetime
 
-st.set_page_config(page_title="LOTOELITE v87", layout="wide", page_icon="🎯")
-st.markdown("<h1 style='text-align:center;color:#d32f2f;font-size:3rem;font-weight:900'>🎯 LOTOELITE v87</h1>", unsafe_allow_html=True)
+st.set_page_config(page_title="LOTOELITE", layout="wide", page_icon="🎯")
+st.markdown("<h1 style='text-align:center;color:#d32f2f;font-size:3.2rem;font-weight:900'>🎯 LOTOELITE</h1>", unsafe_allow_html=True)
 
 if 'historico' not in st.session_state: st.session_state.historico=[]
 if 'qtd_fech' not in st.session_state: st.session_state.qtd_fech=21
@@ -140,7 +140,6 @@ with tabs[12]:
                 st.success(f"{tipo}: {' - '.join(f'{n:02d}' for n in jogo)}")
         st.divider()
 
-# abas simples
 with tabs[1]: st.write(f"Total: {len(st.session_state.historico)} jogos")
 with tabs[4]: st.write("Estatísticas carregadas")
 with tabs[7]: st.write(", ".join(f"{n:02d}" for n in DNAS.get(lot,[])))
