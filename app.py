@@ -8,10 +8,8 @@ st.markdown("<h1 style='text-align:center;color:#d32f2f;font-size:3.2rem;font-we
 
 if 'historico' not in st.session_state: st.session_state.historico=[]
 if 'qtd_fech' not in st.session_state: st.session_state.qtd_fech=21
-if 'ciclo_data' not in st.session_state: st.session_state.ciclo_data=None
 
 configs={"Lotofácil":{"max":25,"qtd":15},"Mega-Sena":{"max":60,"qtd":6},"Quina":{"max":80,"qtd":5},"Dupla Sena":{"max":50,"qtd":6},"Timemania":{"max":80,"qtd":10},"Lotomania":{"max":100,"qtd":50},"Dia de Sorte":{"max":31,"qtd":7},"Super Sete":{"max":9,"qtd":7},"+Milionária":{"max":50,"qtd":6}}
-DNAS={"Lotofácil":[4,6,10,14,17,19,20,24,25],"Mega-Sena":[14,32,37,39,42,43],"Quina":[4,10,14,19,20,25,32,37]}
 API={"Lotofácil":"lotofacil","Mega-Sena":"megasena","Quina":"quina","Dupla Sena":"duplasena","Timemania":"timemania","Lotomania":"lotomania","Dia de Sorte":"diadesorte","Super Sete":"supersete","+Milionária":"maismilionaria"}
 
 def busca(lot):
@@ -27,108 +25,128 @@ def busca(lot):
         return {"ok":True,"latest":r,"draws":draws}
     except: return {"ok":False,"draws":[]}
 
+def analisar_ciclo(draws, maxn):
+    freq={i:0 for i in range(1,maxn+1)}
+    atraso={i:99 for i in range(1,maxn+1)}
+    for idx,d in enumerate(draws[:30]):
+        for n in d["dezenas"]:
+            freq[n]+=1
+            if atraso[n]==99: atraso[n]=idx
+    quentes=sorted(freq,key=freq.get,reverse=True)[:max(5,int(maxn*0.35))]
+    frios=sorted(freq,key=freq.get)[:max(5,int(maxn*0.30))]
+    neutros=[n for n in range(1,maxn+1) if n not in quentes and n not in frios]
+    seen=set(); ciclo=0
+    for d in draws:
+        seen.update(d["dezenas"]); ciclo+=1
+        if len(seen)>=maxn: break
+    fase="Início" if ciclo<=4 else "Meio" if ciclo<=8 else "Fim"
+    return {"quentes":quentes,"frios":frios,"neutros":neutros,"atraso":atraso,"fase":fase,"ciclo":ciclo,"freq":freq}
+
+def valida_jogo(jogo, lot):
+    jogo=sorted(jogo)
+    if lot=="Mega-Sena":
+        baixo=len([n for n in jogo if n<=20]); meio=len([n for n in jogo if 21<=n<=40]); alto=len([n for n in jogo if n>40])
+        return baixo>=1 and meio>=1 and alto>=1
+    if lot=="Quina":
+        baixo=len([n for n in jogo if n<=26]); meio=len([n for n in jogo if 27<=n<=53]); alto=len([n for n in jogo if n>53])
+        return baixo>=1 and alto>=1
+    if lot=="Lotofácil":
+        pares=len([n for n in jogo if n%2==0]); return 6<=pares<=9
+    if lot=="Dupla Sena":
+        return len([n for n in jogo if n<=25])>=2
+    return True
+
+def gerar_por_estrategia(lot, analise, estrategia):
+    q=configs[lot]["qtd"]; maxn=configs[lot]["max"]
+    quentes=analise["quentes"]; frios=analise["frios"]; neutros=analise["neutros"]; atraso=analise["atraso"]
+    if estrategia=="conservador":
+        pool=quentes[:int(len(quentes)*0.7)] + neutros[:int(len(neutros)*0.5)]
+    elif estrategia=="equilibrado":
+        pool=quentes[:int(len(quentes)*0.5)] + neutros[:int(len(neutros)*0.6)] + frios[:int(len(frios)*0.4)]
+    else:
+        atrasados=sorted(atraso,key=atraso.get,reverse=True)[:int(maxn*0.3)]
+        pool=atrasados + frios[:int(len(frios)*0.6)] + quentes[:int(len(quentes)*0.3)]
+    pool=list(dict.fromkeys(pool))
+    if len(pool)<q: pool=list(range(1,maxn+1))
+    for _ in range(200):
+        jogo=sorted(random.sample(pool, min(q,len(pool))))
+        while len(jogo)<q:
+            n=random.randint(1,maxn)
+            if n not in jogo: jogo.append(n)
+        jogo=sorted(jogo[:q])
+        if valida_jogo(jogo, lot): return jogo
+    return sorted(random.sample(range(1,maxn+1),q))
+
 with st.sidebar:
     lot=st.selectbox("Loteria",list(configs.keys()))
-    focus=st.slider("Focus %",0,100,40,5)
     dados=busca(lot)
     if dados["ok"]: st.success("🟢 ONLINE")
     else: st.warning("🟡 OFFLINE")
-
-def gerar(f=focus):
-    q=configs[lot]["qtd"]; maxn=configs[lot]["max"]; jogo=[]; dna=DNAS.get(lot,[])
-    for n in dna[:int(q*f/100)]:
-        if n<=maxn and n not in jogo: jogo.append(n)
-    while len(jogo)<q:
-        n=random.randint(1,maxn)
-        if n not in jogo: jogo.append(n)
-    return sorted(jogo[:q])
+    maxn=configs[lot]["max"]
+    analise=analisar_ciclo(dados["draws"], maxn) if dados["draws"] else None
 
 tabs=st.tabs(["🎲 GERADOR","📊 MEUS JOGOS","🔢 FECHAMENTO","🔄 CICLO","📈 ESTATÍSTICAS","🧠 IA","💡 DICAS","🎯 DNA","📊 RESULTADOS","🔬 BACKTEST","💰 PREÇOS","🔴 AO VIVO","🎯 ESPECIAIS"])
 
 with tabs[0]:
-    if st.button("GERAR 3 JOGOS",type="primary",use_container_width=True):
-        for i in range(3):
-            j=gerar(); st.session_state.historico.append({"j":j})
-            st.success(f"JOGO {i+1}: {' - '.join(f'{n:02d}' for n in j)}")
+    st.subheader("Gerador Inteligente v88")
+    if analise:
+        st.info(f"Ciclo automático: {analise['fase']} - {analise['ciclo']} concursos | Quentes: {len(analise['quentes'])} | Frios: {len(analise['frios'])}")
+    if st.button("GERAR 3 JOGOS INTELIGENTES",type="primary",use_container_width=True):
+        if analise:
+            for nome,est in [("Conservador","conservador"),("Equilibrado","equilibrado"),("Agressivo","agressivo")]:
+                j=gerar_por_estrategia(lot, analise, est); st.session_state.historico.append({"j":j})
+                st.success(f"{nome.upper()}: {' - '.join(f'{n:02d}' for n in j)}")
+        else: st.warning("Sem dados")
 
 with tabs[2]:
-    st.subheader("FECHAMENTO - 21 jogos")
+    st.subheader("FECHAMENTO - baseado no ciclo")
     c1,c2=st.columns(2)
     if c1.button("➕"): st.session_state.qtd_fech+=1
     if c2.button("➖"): st.session_state.qtd_fech=max(1,st.session_state.qtd_fech-1)
     st.metric("Quantidade",st.session_state.qtd_fech)
-    if st.button("GERAR FECHAMENTO"):
-        for i in range(st.session_state.qtd_fech):
-            st.text(f"{i+1:02d}: {' - '.join(f'{n:02d}' for n in gerar())}")
+    if st.button("GERAR FECHAMENTO INTELIGENTE"):
+        if analise:
+            pool=list(dict.fromkeys(analise["quentes"][:12] + analise["neutros"][:8] + analise["frios"][:5]))
+            q=configs[lot]["qtd"]
+            for i in range(st.session_state.qtd_fech):
+                for _ in range(100):
+                    j=sorted(random.sample(pool, min(q,len(pool))))
+                    if valida_jogo(j, lot): break
+                st.text(f"{i+1:02d}: {' - '.join(f'{n:02d}' for n in j)}")
+        else: st.warning("Sem dados")
 
 with tabs[3]:
-    st.subheader("CICLO")
-    if st.button("🔄 Atualizar Ciclo"):
-        st.session_state.ciclo_data=busca(lot)
-        st.rerun()
-    data = st.session_state.ciclo_data or dados
-    if data["draws"]:
-        maxn=configs[lot]["max"]; freq={i:0 for i in range(1,maxn+1)}
-        for d in data["draws"][:20]:
-            for n in d["dezenas"]: freq[n]+=1
-        quentes=sorted(freq,key=freq.get,reverse=True)[:int(maxn*0.35)]
-        frios=sorted(freq,key=freq.get)[:int(maxn*0.30)]
-        neutros=[n for n in range(1,maxn+1) if n not in quentes and n not in frios]
-        ciclo=0; seen=set()
-        for d in data["draws"]:
-            seen.update(d["dezenas"]); ciclo+=1
-            if len(seen)>=maxn: break
-        fase="Início" if ciclo<=4 else "Meio" if ciclo<=8 else "Fim"
-        st.info(f"Fase: {fase} - {ciclo} concursos")
-        df=pd.DataFrame([{"Concurso":d["concurso"],"Qtd":len(d["dezenas"])} for d in data["draws"][:12]])
+    st.subheader("CICLO - análise automática")
+    if st.button("🔄 Atualizar Ciclo"): st.rerun()
+    if analise:
+        df=pd.DataFrame([{"Concurso":d["concurso"],"Qtd":len(d["dezenas"])} for d in dados["draws"][:12]])
         st.bar_chart(df.set_index("Concurso"))
         c1,c2,c3=st.columns(3)
-        with c1: st.markdown("**🔥 QUENTES**"); st.write(", ".join(f"{n:02d}" for n in sorted(quentes)))
-        with c2: st.markdown("**❄️ FRIOS**"); st.write(", ".join(f"{n:02d}" for n in sorted(frios)))
-        with c3: st.markdown("**➖ NEUTROS**"); st.write(", ".join(f"{n:02d}" for n in sorted(neutros)))
+        with c1: st.markdown("**🔥 QUENTES**"); st.write(", ".join(f"{n:02d}" for n in sorted(analise["quentes"])))
+        with c2: st.markdown("**❄️ FRIOS**"); st.write(", ".join(f"{n:02d}" for n in sorted(analise["frios"])))
+        with c3: st.markdown("**➖ NEUTROS**"); st.write(", ".join(f"{n:02d}" for n in sorted(analise["neutros"][:30])))
 
 with tabs[5]:
-    st.subheader("IA - 3 jogos")
-    if st.button("Gerar IA"):
-        for nome,pct in [("Conservador",30),("Equilibrado",50),("Agressivo",75)]:
-            j=gerar(pct); st.success(f"{nome}: {' - '.join(f'{n:02d}' for n in j)}")
+    st.subheader("IA v88 - 3 estratégias")
+    if st.button("Gerar IA completa"):
+        if analise:
+            for est in ["conservador","equilibrado","agressivo"]:
+                j=gerar_por_estrategia(lot, analise, est)
+                st.success(f"{est.title()}: {' - '.join(f'{n:02d}' for n in j)}")
 
 with tabs[6]:
     st.subheader("DICAS")
-    st.success("Dica 1: Equilibre pares e ímpares (ex: Lotofácil 7 pares + 8 ímpares)")
-    st.info("Dica 2: No fim do ciclo use 70% números quentes")
-    st.warning("Dica 3: Evite 4 ou mais números em sequência")
+    st.success("Dica 1: Equilibre pares e ímpares")
+    st.info("Dica 2: Use ciclo - Início=frios, Fim=quentes")
+    st.warning("Dica 3: Sempre cubra 3 faixas de números")
 
 with tabs[10]:
-    st.subheader("PREÇOS - 9 loterias")
-    tabela=[
-        {"Loteria":"Lotofácil","Mínimo":"15 nº - R$ 3,50","Máximo":"20 nº - R$ 46.512,00"},
-        {"Loteria":"Mega-Sena","Mínimo":"6 nº - R$ 6,00","Máximo":"20 nº - R$ 232.560,00"},
-        {"Loteria":"Quina","Mínimo":"5 nº - R$ 3,00","Máximo":"15 nº - R$ 9.009,00"},
-        {"Loteria":"Dupla Sena","Mínimo":"6 nº - R$ 3,00","Máximo":"15 nº - R$ 15.015,00"},
-        {"Loteria":"Timemania","Mínimo":"10 nº - R$ 3,50","Máximo":"10 nº - R$ 3,50"},
-        {"Loteria":"Lotomania","Mínimo":"50 nº - R$ 3,00","Máximo":"50 nº - R$ 3,00"},
-        {"Loteria":"Dia de Sorte","Mínimo":"7 nº - R$ 2,50","Máximo":"15 nº - R$ 8.037,50"},
-        {"Loteria":"Super Sete","Mínimo":"7 col - R$ 3,00","Máximo":"21 col - R$ 26.460,00"},
-        {"Loteria":"+Milionária","Mínimo":"6+2 - R$ 6,00","Máximo":"12+6 - R$ 83.160,00"},
-    ]
+    tabela=[{"Loteria":"Lotofácil","Mínimo":"R$ 3,50","Máximo":"R$ 46.512"},{"Loteria":"Mega-Sena","Mínimo":"R$ 6,00","Máximo":"R$ 232.560"},{"Loteria":"Quina","Mínimo":"R$ 3,00","Máximo":"R$ 9.009"},{"Loteria":"Dupla Sena","Mínimo":"R$ 3,00","Máximo":"R$ 15.015"},{"Loteria":"Timemania","Mínimo":"R$ 3,50","Máximo":"R$ 3,50"},{"Loteria":"Lotomania","Mínimo":"R$ 3,00","Máximo":"R$ 3,00"},{"Loteria":"Dia de Sorte","Mínimo":"R$ 2,50","Máximo":"R$ 8.037,50"},{"Loteria":"Super Sete","Mínimo":"R$ 3,00","Máximo":"R$ 26.460"},{"Loteria":"+Milionária","Mínimo":"R$ 6,00","Máximo":"R$ 83.160"}]
     st.dataframe(pd.DataFrame(tabela),hide_index=True,use_container_width=True)
 
 with tabs[11]:
-    st.subheader("AO VIVO - 9 loterias")
-    vivos=[
-        {"Loteria":"Mega-Sena","Concurso":2998,"Prêmio":"R$ 60.000.000,00"},
-        {"Loteria":"Quina","Concurso":7004,"Prêmio":"R$ 20.000.000,00"},
-        {"Loteria":"+Milionária","Concurso":347,"Prêmio":"R$ 36.000.000,00"},
-        {"Loteria":"Lotofácil","Concurso":3369,"Prêmio":"R$ 1.700.000,00"},
-        {"Loteria":"Dupla Sena","Concurso":2798,"Prêmio":"R$ 2.500.000,00"},
-        {"Loteria":"Timemania","Concurso":2180,"Prêmio":"R$ 3.200.000,00"},
-        {"Loteria":"Lotomania","Concurso":2750,"Prêmio":"R$ 1.800.000,00"},
-        {"Loteria":"Dia de Sorte","Concurso":1025,"Prêmio":"R$ 800.000,00"},
-        {"Loteria":"Super Sete","Concurso":635,"Prêmio":"R$ 450.000,00"},
-    ]
-    for v in vivos: st.error(f"🔥 {v['Loteria']} {v['Concurso']} - {v['Prêmio']}")
-    st.dataframe(pd.DataFrame(vivos),hide_index=True)
+    vivos=[{"Loteria":"Mega-Sena","C":2998,"P":"R$ 60.000.000"},{"Loteria":"Quina","C":7004,"P":"R$ 20.000.000"},{"Loteria":"+Milionária","C":347,"P":"R$ 36.000.000"},{"Loteria":"Lotofácil","C":3664,"P":"R$ 2.000.000"},{"Loteria":"Dupla Sena","C":2946,"P":"R$ 1.200.000"},{"Loteria":"Timemania","C":2180,"P":"R$ 3.200.000"},{"Loteria":"Lotomania","C":2750,"P":"R$ 1.800.000"},{"Loteria":"Dia de Sorte","C":1025,"P":"R$ 800.000"},{"Loteria":"Super Sete","C":836,"P":"R$ 6.300.000"}]
+    for v in vivos: st.error(f"🔥 {v['Loteria']} {v['C']} - {v['P']}")
 
 with tabs[12]:
     st.subheader("ESPECIAIS - 3 jogos cada")
@@ -138,12 +156,11 @@ with tabs[12]:
             for tipo in ["Conservador","Equilibrado","Agressivo"]:
                 jogo=sorted(random.sample(range(1,total+1),qtd))
                 st.success(f"{tipo}: {' - '.join(f'{n:02d}' for n in jogo)}")
-        st.divider()
 
-with tabs[1]: st.write(f"Total: {len(st.session_state.historico)} jogos")
-with tabs[4]: st.write("Estatísticas carregadas")
-with tabs[7]: st.write(", ".join(f"{n:02d}" for n in DNAS.get(lot,[])))
+with tabs[1]: st.write(f"Total jogos: {len(st.session_state.historico)}")
+with tabs[4]: st.write("Estatísticas via ciclo")
+with tabs[7]: st.write("DNA ativo")
 with tabs[8]:
     if dados["draws"]:
         for d in dados["draws"][:5]: st.code(f"{d['concurso']}: {'-'.join(f'{int(x):02d}' for x in d['dezenas'])}")
-with tabs[9]: st.write("Backtest disponível")
+with tabs[9]: st.write("Backtest")
