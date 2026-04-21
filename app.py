@@ -6,83 +6,38 @@ from datetime import datetime
 import numpy as np
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestClassifier
-import xgboost as xgb
 import matplotlib.pyplot as plt
-import os
 
-# ─── CONFIGURAÇÃO V89 ─────────────────────────────────────────────────────────
-USAR_FILTRO_POOL = False # Mude para True amanhã 22/04 para ativar o teste
-PESO_PERSONAL_REINFORCEMENT = 0.15
+# ─── TENTA IMPORTAR XGBOOST, SE NÃO TIVER USA RANDOMFOREST ───
+try:
+    import xgboost as xgb
+    HAS_XGB = True
+except ModuleNotFoundError:
+    HAS_XGB = False
+    st.warning("⚠️ XGBoost não encontrado — usando RandomForest como backup")
 
-st.set_page_config(page_title="LOTOELITE ULTIMATE AI V89", layout="wide", page_icon="🎯")
+# ─── CONFIG V89 ───
+USAR_FILTRO_POOL = False  # <<<< DEIXE FALSE HOJE, amanhã muda para True
+PESO_PERSONAL = 0.15
 
-# CSS customizado
-st.markdown("""
-<style>
-  .main-title {
-        text-align: center;
-        color: #d32f2f;
-        font-size: 2.8rem;
-        font-weight: 900;
-        padding: 10px 0;
-        text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
-    }
-  .subtitle {
-        text-align: center;
-        color: #666;
-        font-size: 1.1rem;
-        margin-bottom: 20px;
-    }
-  .numero-quente {
-        background-color: #ff4444;
-        color: white;
-        padding: 4px 8px;
-        border-radius: 50%;
-        font-weight: bold;
-        margin: 2px;
-        display: inline-block;
-        min-width: 32px;
-        text-align: center;
-    }
-  .numero-frio {
-        background-color: #4488ff;
-        color: white;
-        padding: 4px 8px;
-        border-radius: 50%;
-        font-weight: bold;
-        margin: 2px;
-        display: inline-block;
-        min-width: 32px;
-        text-align: center;
-    }
-  .numero-neutro {
-        background-color: #888;
-        color: white;
-        padding: 4px 8px;
-        border-radius: 50%;
-        font-weight: bold;
-        margin: 2px;
-        display: inline-block;
-        min-width: 32px;
-        text-align: center;
-    }
-  .numero-jogo {
-        background-color: #2e7d32;
-        color: white;
-        padding: 6px 10px;
-        border-radius: 50%;
-        font-weight: bold;
-        margin: 3px;
-        display: inline-block;
-        min-width: 36px;
-        text-align: center;
-        font-size: 1.1rem;
-    }
-</style>
-""", unsafe_allow_html=True)
+st.set_page_config(page_title="LOTOELITE V89", layout="wide", page_icon="🎯")
+# ... (cole todo o resto do código que te mandei, só troque a parte do train_xgboost por esta)
 
-st.markdown('<div class="main-title">🎯 LOTOELITE ULTIMATE AI V89</div>', unsafe_allow_html=True)
-st.markdown('<div class="subtitle">IA Preditiva + Ciclos + Pool Duplo</div>', unsafe_allow_html=True)
+@st.cache_resource
+def train_model(features_tuple, labels_tuple):
+    features = np.array(features_tuple)
+    labels = np.array(labels_tuple)
+    if len(features) == 0:
+        return None
+    X_train, X_test, y_train, y_test = train_test_split(features, labels, test_size=0.2, random_state=42)
+    
+    if HAS_XGB:
+        model = xgb.XGBClassifier(objective='binary:logistic', eval_metric='logloss', n_estimators=100, verbosity=0)
+    else:
+        model = RandomForestClassifier(n_estimators=100, random_state=42)
+    
+    model.fit(X_train, y_train)
+    return model
 
 # ─── Configurações das Loterias ───────────────────────────────────────────────
 configs = {
