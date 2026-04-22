@@ -2,3 +2,5 @@ streamlit
 pandas
 numpy
 requests
+xgboost==2.0.3
+scikit-learn==1.4.0
