@@ -7,163 +7,174 @@ from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import matplotlib.pyplot as plt
 
-# IA PESADA
-try:
-    from xgboost import XGBClassifier
-    XGB_AVAILABLE = True
-except:
-    XGB_AVAILABLE = False
-
-st.set_page_config(page_title="LOTOELITE V91 TURBO ETAPA2", layout="wide", page_icon="🧠")
-st.markdown('<h1 style="text-align:center;color:#7b1fa2">🧠 LOTOELITE V91 TURBO - IA PESADA</h1>', unsafe_allow_html=True)
+st.set_page_config(page_title="LOTOELITE V91 TURBO", layout="wide", page_icon="🚀")
+st.markdown('<h1 style="text-align:center;color:#d32f2f">🚀 LOTOELITE V91 TURBO - ETAPA 1</h1>', unsafe_allow_html=True)
 
 LOTERIAS = {
     "Lotofácil":{"max":25,"qtd":15,"preco":3.0,"api":"lotofacil"},
     "Mega-Sena":{"max":60,"qtd":6,"preco":5.0,"api":"megasena"},
     "Quina":{"max":80,"qtd":5,"preco":2.5,"api":"quina"},
+    "Lotomania":{"max":100,"qtd":50,"preco":3.0,"api":"lotomania"},
+    "Timemania":{"max":80,"qtd":10,"preco":3.5,"api":"timemania"},
 }
 lot = st.sidebar.selectbox("Loteria", list(LOTERIAS.keys()))
 cfg = LOTERIAS[lot]
+fase = ["INÍCIO","MEIO","FIM"][datetime.now().day % 3]
 
-@st.cache_data(ttl=3600, show_spinner="Carregando 50 concursos...")
+# CACHE 50 CONCURSOS
+@st.cache_data(ttl=3600, show_spinner="Carregando 50 concursos em paralelo...")
 def carrega_50(api):
     try:
         latest = requests.get(f"https://loteriascaixa-api.herokuapp.com/api/{api}/latest", timeout=10).json()
-        ultimo = int(latest.get("concurso", 100))
+        ultimo = int(latest.get("concurso", 2800))
         concursos = list(range(max(1, ultimo-49), ultimo+1))
+        
         def fetch(c):
             try:
                 r = requests.get(f"https://loteriascaixa-api.herokuapp.com/api/{api}/{c}", timeout=5).json()
-                return {"concurso":c,"dezenas":[int(d) for d in r.get("dezenas",[])]}
+                return {"concurso":c,"data":r.get("data"),"dezenas":[int(d) for d in r.get("dezenas",[])],}
             except: return None
+        
         resultados=[]
         with ThreadPoolExecutor(max_workers=10) as ex:
-            for f in as_completed([ex.submit(fetch,c) for c in concursos]):
-                if f.result(): resultados.append(f.result())
+            futures = {ex.submit(fetch,c):c for c in concursos}
+            for f in as_completed(futures):
+                res = f.result()
+                if res: resultados.append(res)
         return sorted(resultados, key=lambda x: x["concurso"], reverse=True)
-    except: return []
+    except Exception as e:
+        st.error(f"Erro API: {e}")
+        return []
 
 dados = carrega_50(cfg["api"])
-st.sidebar.success(f"✅ {len(dados)} concursos | XGB: {'OK' if XGB_AVAILABLE else 'Instalando...'}")
+st.sidebar.success(f"✅ {len(dados)} concursos carregados em paralelo")
 
-# PREPARA DADOS IA
-todos = list(range(1, cfg["max"]+1))
-freq = {n: sum(n in d["dezenas"] for d in dados) for n in todos}
+# CALCULA FREQUENCIAS
+todos_nums = list(range(1, cfg["max"]+1))
+freq = {n:0 for n in todos_nums}
+ultima_aparicao = {n:999 for n in todos_nums}
 
-# TREINA XGBOOST
-@st.cache_resource
-def treina_xgb(_dados, max_num):
-    if not XGB_AVAILABLE or len(_dados)<20: return None, {}
-    X, y = [], []
-    for i in range(len(_dados)-5):
-        historico = _dados[i+1:i+6]
-        proximo = set(_dados[i]["dezenas"])
-        for n in range(1, max_num+1):
-            atraso = next((j for j,h in enumerate(historico) if n in h["dezenas"]), 5)
-            freq5 = sum(n in h["dezenas"] for h in historico)
-            X.append([atraso, freq5, n/max_num, freq.get(n,0)/50])
-            y.append(1 if n in proximo else 0)
-    model = XGBClassifier(n_estimators=100, max_depth=4, verbosity=0)
-    model.fit(np.array(X), np.array(y))
-    # prediz próximo
-    probs = {}
-    for n in range(1, max_num+1):
-        atraso = next((j for j,h in enumerate(_dados[:5]) if n in h["dezenas"]), 5)
-        freq5 = sum(n in h["dezenas"] for h in _dados[:5])
-        prob = model.predict_proba([[atraso, freq5, n/max_num, freq.get(n,0)/50]])[0][1]
-        probs[n] = prob
-    return model, probs
+for idx, conc in enumerate(dados):
+    for n in conc["dezenas"]:
+        freq[n]+=1
+        if ultima_aparicao[n]==999: ultima_aparicao[n]=idx
 
-model, probs = treina_xgb(dados, cfg["max"])
+# CLASSIFICA QUENTES/FRIOS
+sorted_freq = sorted(freq.items(), key=lambda x:-x[1])
+qtd_terco = max(1, len(todos_nums)//3)
+quentes = [n for n,_ in sorted_freq[:qtd_terco]]
+frios = [n for n,_ in sorted_freq[-qtd_terco:]]
+neutros = [n for n in todos_nums if n not in quentes+frios]
 
-# ALGORITMO GENÉTICO
-def genetico(probs, qtd, geracoes=50):
-    def fitness(jogo): return sum(probs.get(n,0) for n in jogo)
-    populacao = [random.sample(todos, qtd) for _ in range(100)]
-    for _ in range(geracoes):
-        populacao = sorted(populacao, key=fitness, reverse=True)[:50]
-        nova = []
-        for _ in range(50):
-            p1,p2 = random.sample(populacao[:20],2)
-            filho = list(set(p1[:qtd//2] + p2[qtd//2:]))
-            while len(filho)<qtd: filho.append(random.choice(todos))
-            if random.random()<0.1: filho[random.randint(0,qtd-1)]=random.choice(todos)
-            nova.append(filho[:qtd])
-        populacao += nova
-    return sorted(populacao, key=fitness, reverse=True)[0]
-
-def render_color(nums, probs_dict):
+def render_color(nums):
     html=""
     for n in sorted(nums):
-        p = probs_dict.get(n,0)
-        cor = "#4caf50" if p>0.6 else "#2196f3" if p<0.4 else "#ff9800"
-        html+=f'<span style="background:{cor};color:white;padding:6px 10px;border-radius:50%;margin:2px;display:inline-block;min-width:36px;text-align:center" title="Prob:{p:.2f}">{n:02d}</span>'
+        if n in quentes: cor="#4caf50"; emoji="🟢"
+        elif n in frios: cor="#2196f3"; emoji="🔵"
+        else: cor="#9e9e9e"; emoji="⚫"
+        html+=f'<span style="background:{cor};color:white;padding:6px 10px;border-radius:50%;margin:2px;display:inline-block;min-width:36px;text-align:center;font-weight:bold" title="{emoji}">{n:02d}</span>'
     return html
 
-tabs = st.tabs(["🎲 GERADOR","🧠 IA XGBOOST","🧬 GENÉTICO","📈 ESTATÍSTICAS","🔬 BACKTEST","🎯 DNA","📊 RESULTADOS"])
+tabs = st.tabs(["🎲 GERADOR","📊 MEUS JOGOS","🔢 FECHAMENTO","🔄 CICLO","📈 ESTATÍSTICAS","🧠 IA AVANÇADA","💡 DICAS","🎯 DNA","📊 RESULTADOS","🔬 BACKTEST","💰 PREÇOS","🔴 AO VIVO","🎯 ESPECIAIS"])
 
+# 1 GERADOR
 with tabs[0]:
-    st.subheader("Gerador Clássico")
-    if st.button("Gerar 3"):
+    st.subheader(f"Gerador - {lot} | Fase {fase}")
+    def gerar(tipo):
+        if tipo=="Conservador": base=quentes+neutros[:5]
+        elif tipo=="Agressivo": base=frios+neutros[:5]
+        else: base=quentes[:8]+frios[:8]+neutros
+        return sorted(random.sample(list(set(base)), cfg["qtd"]))
+    if st.button("Gerar 3 jogos"):
         for t in ["Conservador","Equilibrado","Agressivo"]:
-            jogo = sorted(random.sample(todos, cfg["qtd"]))
-            st.markdown(f"**{t}:** {render_color(jogo, probs)}", unsafe_allow_html=True)
+            st.markdown(f"**{t}:** {render_color(gerar(t))}")
 
+# 2 MEUS JOGOS
 with tabs[1]:
-    st.subheader("🧠 XGBoost - Probabilidades IA")
-    if model:
-        df_prob = pd.DataFrame([{"Dezena":n,"Probabilidade":probs[n]} for n in todos]).sort_values("Probabilidade",ascending=False)
-        st.dataframe(df_prob.head(15), hide_index=True)
-        top_jogo = sorted(df_prob.head(cfg["qtd"])["Dezena"].tolist())
-        st.success("Jogo XGBoost (top probabilidades):")
-        st.markdown(render_color(top_jogo, probs), unsafe_allow_html=True)
-        st.bar_chart(df_prob.set_index("Dezena")["Probabilidade"])
-    else:
-        st.warning("Treinando modelo...")
+    st.info("Histórico salvo na sessão")
 
+# 3 FECHAMENTO
 with tabs[2]:
-    st.subheader("🧬 Algoritmo Genético")
-    if st.button("Evoluir 50 gerações"):
-        if probs:
-            melhor = genetico(probs, cfg["qtd"])
-            st.success("Melhor indivíduo após evolução:")
-            st.markdown(render_color(sorted(melhor), probs), unsafe_allow_html=True)
-            st.metric("Fitness", f"{sum(probs.get(n,0) for n in melhor):.3f}")
-        else:
-            st.error("Aguarde XGBoost")
+    st.subheader("Fechamento inteligente")
+    txt=st.text_input("Dezenas base", " ".join(str(x) for x in quentes[:18]))
+    if st.button("Gerar"):
+        base=[int(x) for x in txt.split() if x.isdigit()]
+        for i in range(8): st.code(f"{i+1}: {' '.join(f'{x:02d}' for x in sorted(random.sample(base,cfg['qtd'])))}")
 
+# 4 CICLO
 with tabs[3]:
-    st.subheader("Estatísticas 50 concursos")
-    df = pd.DataFrame([{"Dezena":n,"Freq":freq[n]} for n in todos])
-    st.bar_chart(df.set_index("Dezena"))
+    st.metric("Fase atual", fase)
+    st.write(f"Quentes ({len(quentes)}): {render_color(quentes[:10])}", unsafe_allow_html=True)
+    st.write(f"Frios ({len(frios)}): {render_color(frios[:10])}", unsafe_allow_html=True)
 
+# 5 ESTATÍSTICAS
 with tabs[4]:
-    st.subheader("🔬 Backtest XGBoost")
-    if model and len(dados)>10:
-        acertos=[]
-        for i in range(10):
-            teste = dados[i+1:i+6]
-            real = set(dados[i]["dezenas"])
-            # prediz
-            probs_teste = {}
-            for n in todos:
-                atraso = next((j for j,h in enumerate(teste) if n in h["dezenas"]),5)
-                freq5 = sum(n in h["dezenas"] for h in teste)
-                p = model.predict_proba([[atraso,freq5,n/cfg["max"],freq.get(n,0)/50]])[0][1]
-                probs_teste[n]=p
-            pred = set(sorted(probs_teste, key=probs_teste.get, reverse=True)[:cfg["qtd"]])
-            acertos.append(len(pred & real))
-        st.metric("Média acertos (últimos 10)", f"{np.mean(acertos):.2f}")
-        st.line_chart(acertos)
-    else:
-        st.info("Coletando dados...")
+    st.subheader("Frequência acumulada - últimos 50")
+    df_freq=pd.DataFrame([{"Dezena":n,"Freq":freq[n],"Atraso":ultima_aparicao[n]} for n in todos_nums]).sort_values("Freq",ascending=False)
+    col1,col2=st.columns(2)
+    with col1:
+        st.write("**Top 10 mais frequentes**")
+        st.dataframe(df_freq.head(10), hide_index=True)
+    with col2:
+        st.write("**Top 10 menos frequentes**")
+        st.dataframe(df_freq.tail(10), hide_index=True)
+    st.bar_chart(df_freq.set_index("Dezena")["Freq"])
 
+# 6 IA AVANÇADA
 with tabs[5]:
-    st.subheader("DNA + Probabilidades")
-    dna_df = pd.DataFrame([{"Dezena":n,"Prob_XGB":f"{probs.get(n,0):.3f}","Freq_50":freq[n]} for n in todos])
-    st.dataframe(dna_df, hide_index=True, height=400)
+    st.warning("🧠 XGBoost + LSTM + Genético — em desenvolvimento na Etapa 2")
+    st.json({"dados_carregados":len(dados),"quentes":len(quentes),"pronto_para_treino":True})
 
+# 7 DICAS
 with tabs[6]:
-    st.subheader("Últimos resultados")
-    for d in dados[:10]:
-        st.markdown(f"**{d['concurso']}**: {render_color(d['dezenas'], probs)}", unsafe_allow_html=True)
+    st.subheader("Guia de Ciclos")
+    dicas = {
+        "Lotofácil":"Janela 4-6 concursos. INÍCIO: priorize quentes. FIM: priorize frios.",
+        "Mega-Sena":"Janela 7-17. Use fechamentos.",
+        "Quina":"Janela 15-30. Alta variância."
+    }
+    st.info(dicas.get(lot,"Siga a fase do ciclo"))
+
+# 8 DNA
+with tabs[7]:
+    st.subheader("DNA das Dezenas")
+    def is_primo(n): return n>1 and all(n%i for i in range(2,int(n**0.5)+1))
+    dna=[]
+    for n in todos_nums:
+        dna.append({
+            "Dezena":n,
+            "Freq":freq[n],
+            "Atraso":ultima_aparicao[n],
+            "Paridade":"Par" if n%2==0 else "Ímpar",
+            "Primo":"Sim" if is_primo(n) else "Não",
+            "Categoria":"🟢 Quente" if n in quentes else "🔵 Frio" if n in frios else "⚫ Neutro"
+        })
+    st.dataframe(pd.DataFrame(dna), hide_index=True, height=400)
+
+# 9 RESULTADOS
+with tabs[8]:
+    st.subheader(f"Últimos {min(20,len(dados))} concursos")
+    for conc in dados[:20]:
+        st.markdown(f"**{conc['concurso']} - {conc['data']}**: {render_color(conc['dezenas'])}", unsafe_allow_html=True)
+
+# 10 BACKTEST
+with tabs[9]:
+    st.warning("Backtest XGBoost — disponível na Etapa 2")
+
+# 11 PREÇOS
+with tabs[10]:
+    st.dataframe(pd.DataFrame([{"Loteria":k,"Preço":f"R$ {v['preco']:.2f}"} for k,v in LOTERIAS.items()]), hide_index=True)
+
+# 12 AO VIVO
+with tabs[11]:
+    if dados:
+        ult=dados[0]
+        st.success(f"Concurso {ult['concurso']} - {ult['data']}")
+        st.markdown(render_color(ult["dezenas"]), unsafe_allow_html=True)
+        st.metric("Prêmio acumulado","Em breve")
+
+# 13 ESPECIAIS
+with tabs[12]:
+    st.subheader("Loterias Especiais")
+    for nome in ["Mega da Virada","Quina São João","Lotofácil Independência"]:
+        st.write(f"**{nome}**")
