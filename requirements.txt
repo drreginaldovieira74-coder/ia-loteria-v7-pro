@@ -1,4 +1,1 @@
-ia-loteria-v7-pro/
-├── app.py ← novo
-├── devcontainer/ ← pode deixar
-└── LEIA-ME
+
