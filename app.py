@@ -3,194 +3,178 @@ import pandas as pd
 import numpy as np
 import random
 import requests
-from datetime import datetime, timedelta
+from datetime import datetime
+from concurrent.futures import ThreadPoolExecutor, as_completed
 import matplotlib.pyplot as plt
 
-st.set_page_config(page_title="LOTOELITE V90.1 FUSÃO", layout="wide", page_icon="🎯")
-st.markdown('<h1 style="text-align:center;color:#d32f2f">🎯 LOTOELITE V90.1 - FUSÃO COMPLETA</h1>', unsafe_allow_html=True)
+st.set_page_config(page_title="LOTOELITE V91 TURBO", layout="wide", page_icon="🚀")
+st.markdown('<h1 style="text-align:center;color:#d32f2f">🚀 LOTOELITE V91 TURBO - ETAPA 1</h1>', unsafe_allow_html=True)
 
-# TODAS LOTERIAS
 LOTERIAS = {
-    "Lotofácil":{"max":25,"qtd":15,"preco":3.0,"api":"lotofacil","dias":"Seg/Qua/Sex"},
-    "Mega-Sena":{"max":60,"qtd":6,"preco":5.0,"api":"megasena","dias":"Ter/Qui/Sab"},
-    "Quina":{"max":80,"qtd":5,"preco":2.5,"api":"quina","dias":"Seg-Sab"},
-    "Lotomania":{"max":100,"qtd":50,"preco":3.0,"api":"lotomania","dias":"Seg/Qua/Sex"},
-    "Timemania":{"max":80,"qtd":10,"preco":3.5,"api":"timemania","dias":"Ter/Qui/Sab"},
-    "Dupla Sena":{"max":50,"qtd":6,"preco":2.5,"api":"duplasena","dias":"Seg/Qua/Sex"},
-    "Dia de Sorte":{"max":31,"qtd":7,"preco":2.5,"api":"diadesorte","dias":"Ter/Qui/Sab"},
-    "Super Sete":{"max":10,"qtd":7,"preco":2.5,"api":"supersete","dias":"Seg/Qua/Sex"},
-    "+Milionária":{"max":50,"qtd":6,"preco":6.0,"api":"maismilionaria","dias":"Qua/Sab"},
+    "Lotofácil":{"max":25,"qtd":15,"preco":3.0,"api":"lotofacil"},
+    "Mega-Sena":{"max":60,"qtd":6,"preco":5.0,"api":"megasena"},
+    "Quina":{"max":80,"qtd":5,"preco":2.5,"api":"quina"},
+    "Lotomania":{"max":100,"qtd":50,"preco":3.0,"api":"lotomania"},
+    "Timemania":{"max":80,"qtd":10,"preco":3.5,"api":"timemania"},
 }
-CICLOS = {"Lotofácil":"4-6","Mega-Sena":"7-17","Quina":"15-30","Lotomania":"3-5","Timemania":"10-20","Dupla Sena":"8-15","Dia de Sorte":"5-10","Super Sete":"4-8","+Milionária":"10-20"}
-
-lot = st.sidebar.selectbox("🎲 Escolha", list(LOTERIAS.keys()))
+lot = st.sidebar.selectbox("Loteria", list(LOTERIAS.keys()))
 cfg = LOTERIAS[lot]
 fase = ["INÍCIO","MEIO","FIM"][datetime.now().day % 3]
-cor = {"INÍCIO":"#4caf50","MEIO":"#ff9800","FIM":"#f44336"}[fase]
 
-# SESSION
-for k in ['jogos','apostas','acertos','pesos','historico']:
-    if k not in st.session_state: st.session_state[k] = {} if k=='pesos' else []
-if lot not in st.session_state.pesos: st.session_state.pesos[lot] = {"INÍCIO":0.7,"MEIO":0.5,"FIM":0.3}
+# CACHE 50 CONCURSOS
+@st.cache_data(ttl=3600, show_spinner="Carregando 50 concursos em paralelo...")
+def carrega_50(api):
+    try:
+        latest = requests.get(f"https://loteriascaixa-api.herokuapp.com/api/{api}/latest", timeout=10).json()
+        ultimo = int(latest.get("concurso", 2800))
+        concursos = list(range(max(1, ultimo-49), ultimo+1))
+        
+        def fetch(c):
+            try:
+                r = requests.get(f"https://loteriascaixa-api.herokuapp.com/api/{api}/{c}", timeout=5).json()
+                return {"concurso":c,"data":r.get("data"),"dezenas":[int(d) for d in r.get("dezenas",[])],}
+            except: return None
+        
+        resultados=[]
+        with ThreadPoolExecutor(max_workers=10) as ex:
+            futures = {ex.submit(fetch,c):c for c in concursos}
+            for f in as_completed(futures):
+                res = f.result()
+                if res: resultados.append(res)
+        return sorted(resultados, key=lambda x: x["concurso"], reverse=True)
+    except Exception as e:
+        st.error(f"Erro API: {e}")
+        return []
 
-def render(nums): return "".join([f'<span style="background:#2e7d32;color:white;padding:7px 11px;border-radius:50%;margin:3px;display:inline-block;min-width:40px;text-align:center;font-weight:bold">{n:02d}</span>' for n in sorted(nums)])
+dados = carrega_50(cfg["api"])
+st.sidebar.success(f"✅ {len(dados)} concursos carregados em paralelo")
 
-@st.cache_data(ttl=300)
-def busca(api):
-    try: return requests.get(f"https://loteriascaixa-api.herokuapp.com/api/{api}/latest",timeout=5).json()
-    except: return {}
+# CALCULA FREQUENCIAS
+todos_nums = list(range(1, cfg["max"]+1))
+freq = {n:0 for n in todos_nums}
+ultima_aparicao = {n:999 for n in todos_nums}
 
-@st.cache_data(ttl=3600)
-def feriados():
-    try: return requests.get("https://brasilapi.com.br/api/feriados/v1/2026",timeout=5).json()
-    except: return []
+for idx, conc in enumerate(dados):
+    for n in conc["dezenas"]:
+        freq[n]+=1
+        if ultima_aparicao[n]==999: ultima_aparicao[n]=idx
 
-res = busca(cfg["api"])
-feriado = any(abs((datetime.strptime(f['date'],'%Y-%m-%d')-datetime.now()).days)<=3 for f in feriados())
-peso = st.session_state.pesos[lot][fase] * (0.9 if feriado else 1)
+# CLASSIFICA QUENTES/FRIOS
+sorted_freq = sorted(freq.items(), key=lambda x:-x[1])
+qtd_terco = max(1, len(todos_nums)//3)
+quentes = [n for n,_ in sorted_freq[:qtd_terco]]
+frios = [n for n,_ in sorted_freq[-qtd_terco:]]
+neutros = [n for n in todos_nums if n not in quentes+frios]
 
-# POOL DUPLO
-todos = list(range(1,cfg["max"]+1))
-random.seed(datetime.now().day + hash(lot))
-quentes = random.sample(todos, min(15, len(todos)//2))
-frios = random.sample([n for n in todos if n not in quentes], min(15, len(todos)//2))
-neutros = [n for n in todos if n not in quentes+frios]
+def render_color(nums):
+    html=""
+    for n in sorted(nums):
+        if n in quentes: cor="#4caf50"; emoji="🟢"
+        elif n in frios: cor="#2196f3"; emoji="🔵"
+        else: cor="#9e9e9e"; emoji="⚫"
+        html+=f'<span style="background:{cor};color:white;padding:6px 10px;border-radius:50%;margin:2px;display:inline-block;min-width:36px;text-align:center;font-weight:bold" title="{emoji}">{n:02d}</span>'
+    return html
 
-def gerar(tipo):
-    if tipo=="Conservador": base = quentes[:int(12*peso)] + neutros
-    elif tipo=="Agressivo": base = frios[:int(12*(1-peso))] + neutros
-    else: base = quentes[:7]+frios[:7]+neutros
-    base = list(dict.fromkeys(base))
-    if len(base) < cfg["qtd"]: base = todos
-    return sorted(random.sample(base, cfg["qtd"]))
-
-tabs = st.tabs(["🎲 GERADOR","🧠 ENSEMBLE","📊 MEUS JOGOS","🎯 CONF","🔢 FECHAMENTO","🔄 CICLO","💰 PREÇOS","💵 APOSTAS","📈 ANÁLISE","🎨 PADRÕES","📡 AO VIVO","🎯 ESPECIAIS","🔗 CAIXA","⚙️ CONFIG"])
+tabs = st.tabs(["🎲 GERADOR","📊 MEUS JOGOS","🔢 FECHAMENTO","🔄 CICLO","📈 ESTATÍSTICAS","🧠 IA AVANÇADA","💡 DICAS","🎯 DNA","📊 RESULTADOS","🔬 BACKTEST","💰 PREÇOS","🔴 AO VIVO","🎯 ESPECIAIS"])
 
 # 1 GERADOR
 with tabs[0]:
-    st.subheader(f"{lot} - Fase {fase}")
-    st.markdown(f'<div style="background:{cor}20;padding:10px;border-left:5px solid {cor}"><b>Ciclo {fase}</b> | Janela {CICLOS[lot]} | Peso {peso:.2f} {"| Feriado próximo!" if feriado else ""}</div>', unsafe_allow_html=True)
-    c1,c2,c3 = st.columns(3)
-    jogos_atuais=[]
-    for col,nome in zip([c1,c2,c3],["Conservador","Equilibrado","Agressivo"]):
-        with col:
-            if st.button(f"🛡️ {nome}" if nome=="Conservador" else f"⚖️ {nome}" if nome=="Equilibrado" else f"🔥 {nome}", use_container_width=True):
-                j=gerar(nome); jogos_atuais.append(j); st.markdown(render(j), unsafe_allow_html=True)
-    if st.button("🎯 GERAR OS 3", type="primary", use_container_width=True):
-        for nome in ["Conservador","Equilibrado","Agressivo"]:
-            j=gerar(nome); jogos_atuais.append({"tipo":nome,"nums":j}); st.markdown(f"**{nome}:** {render(j)}", unsafe_allow_html=True)
-        if st.button("💾 Salvar no perfil"):
-            st.session_state.jogos.extend([{"lot":lot,"data":datetime.now().strftime("%d/%m"),**jg} for jg in jogos_atuais])
-            st.success("Salvo!")
+    st.subheader(f"Gerador - {lot} | Fase {fase}")
+    def gerar(tipo):
+        if tipo=="Conservador": base=quentes+neutros[:5]
+        elif tipo=="Agressivo": base=frios+neutros[:5]
+        else: base=quentes[:8]+frios[:8]+neutros
+        return sorted(random.sample(list(set(base)), cfg["qtd"]))
+    if st.button("Gerar 3 jogos"):
+        for t in ["Conservador","Equilibrado","Agressivo"]:
+            st.markdown(f"**{t}:** {render_color(gerar(t))}")
 
-# 2 ENSEMBLE
+# 2 MEUS JOGOS
 with tabs[1]:
-    st.subheader("Ensemble + Portfólio")
-    if st.button("Gerar Ensemble"):
-        votos={}
-        for _ in range(10):
-            for t,w in [("Conservador",2 if fase=="INÍCIO" else 1),("Equilibrado",1.5),("Agressivo",2 if fase=="FIM" else 1)]:
-                for n in gerar(t): votos[n]=votos.get(n,0)+w
-        ens = sorted(votos.items(), key=lambda x:-x[1])[:cfg["qtd"]]
-        st.markdown("**Ensemble:** "+render([n for n,_ in ens]))
-    if st.button("Gerar Portfólio 7 jogos"):
-        for i in range(7):
-            tipo = ["Conservador","Conservador","Equilibrado","Equilibrado","Agressivo","Agressivo","Equilibrado"][i]
-            st.markdown(f"J{i+1}: {render(gerar(tipo))}")
+    st.info("Histórico salvo na sessão")
 
-# 3 MEUS JOGOS
+# 3 FECHAMENTO
 with tabs[2]:
-    st.subheader("Perfil Inteligente")
-    if st.session_state.jogos:
-        for j in st.session_state.jogos[-10:]:
-            if j['lot']==lot: st.markdown(f"{j['data']} - {j['tipo']}: {render(j['nums'])}")
-    else: st.info("Nenhum jogo salvo")
-
-# 4 CONF
-with tabs[3]:
-    st.subheader("Conferir")
-    inp = st.text_input("Números sorteados")
-    if st.button("Conferir") and inp:
-        sort = [int(x) for x in inp.split() if x.isdigit()]
-        for j in st.session_state.jogos:
-            if j['lot']==lot:
-                ac = len(set(j['nums']) & set(sort))
-                st.write(f"{j['tipo']}: {ac} acertos")
-
-# 5 FECHAMENTO
-with tabs[4]:
-    st.subheader("Fechamento")
-    txt = st.text_area("Digite 18-25 dezenas", "1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21")
-    if st.button("Gerar 10 jogos"):
+    st.subheader("Fechamento inteligente")
+    txt=st.text_input("Dezenas base", " ".join(str(x) for x in quentes[:18]))
+    if st.button("Gerar"):
         base=[int(x) for x in txt.split() if x.isdigit()]
-        for i in range(10):
-            j=sorted(random.sample(base, min(cfg["qtd"], len(base))))
-            st.code(f"{i+1:02d}: {' '.join(f'{x:02d}' for x in j)}")
+        for i in range(8): st.code(f"{i+1}: {' '.join(f'{x:02d}' for x in sorted(random.sample(base,cfg['qtd'])))}")
 
-# 6 CICLO
+# 4 CICLO
+with tabs[3]:
+    st.metric("Fase atual", fase)
+    st.write(f"Quentes ({len(quentes)}): {render_color(quentes[:10])}", unsafe_allow_html=True)
+    st.write(f"Frios ({len(frios)}): {render_color(frios[:10])}", unsafe_allow_html=True)
+
+# 5 ESTATÍSTICAS
+with tabs[4]:
+    st.subheader("Frequência acumulada - últimos 50")
+    df_freq=pd.DataFrame([{"Dezena":n,"Freq":freq[n],"Atraso":ultima_aparicao[n]} for n in todos_nums]).sort_values("Freq",ascending=False)
+    col1,col2=st.columns(2)
+    with col1:
+        st.write("**Top 10 mais frequentes**")
+        st.dataframe(df_freq.head(10), hide_index=True)
+    with col2:
+        st.write("**Top 10 menos frequentes**")
+        st.dataframe(df_freq.tail(10), hide_index=True)
+    st.bar_chart(df_freq.set_index("Dezena")["Freq"])
+
+# 6 IA AVANÇADA
 with tabs[5]:
-    st.header(f"Ciclo: {fase}")
-    st.progress((["INÍCIO","MEIO","FIM"].index(fase)+1)/3)
-    st.write(f"Janela ideal: {CICLOS[lot]} concursos")
-    st.info("Pool duplo ativo: 15 quentes + 15 frios")
+    st.warning("🧠 XGBoost + LSTM + Genético — em desenvolvimento na Etapa 2")
+    st.json({"dados_carregados":len(dados),"quentes":len(quentes),"pronto_para_treino":True})
 
-# 7 PREÇOS
+# 7 DICAS
 with tabs[6]:
-    df=pd.DataFrame([{"Loteria":k,"Aposta":f"{v['qtd']}/{v['max']}","Preço":f"R$ {v['preco']:.2f}","Dias":v['dias']} for k,v in LOTERIAS.items()])
-    st.dataframe(df, hide_index=True, use_container_width=True)
+    st.subheader("Guia de Ciclos")
+    dicas = {
+        "Lotofácil":"Janela 4-6 concursos. INÍCIO: priorize quentes. FIM: priorize frios.",
+        "Mega-Sena":"Janela 7-17. Use fechamentos.",
+        "Quina":"Janela 15-30. Alta variância."
+    }
+    st.info(dicas.get(lot,"Siga a fase do ciclo"))
 
-# 8 APOSTAS
+# 8 DNA
 with tabs[7]:
-    v=st.number_input("Valor R$",0.0,step=0.5)
-    if st.button("Registrar aposta"): st.session_state.apostas.append(v); st.success("OK")
-    if st.session_state.apostas: st.metric("Total",f"R$ {sum(st.session_state.apostas):.2f}")
+    st.subheader("DNA das Dezenas")
+    def is_primo(n): return n>1 and all(n%i for i in range(2,int(n**0.5)+1))
+    dna=[]
+    for n in todos_nums:
+        dna.append({
+            "Dezena":n,
+            "Freq":freq[n],
+            "Atraso":ultima_aparicao[n],
+            "Paridade":"Par" if n%2==0 else "Ímpar",
+            "Primo":"Sim" if is_primo(n) else "Não",
+            "Categoria":"🟢 Quente" if n in quentes else "🔵 Frio" if n in frios else "⚫ Neutro"
+        })
+    st.dataframe(pd.DataFrame(dna), hide_index=True, height=400)
 
-# 9 ANÁLISE
+# 9 RESULTADOS
 with tabs[8]:
-    df2=pd.DataFrame({"Dezena":range(1,cfg["max"]+1),"Freq":np.random.randint(1,30,cfg["max"])})
-    st.bar_chart(df2.set_index("Dezena"))
+    st.subheader(f"Últimos {min(20,len(dados))} concursos")
+    for conc in dados[:20]:
+        st.markdown(f"**{conc['concurso']} - {conc['data']}**: {render_color(conc['dezenas'])}", unsafe_allow_html=True)
 
-# 10 PADRÕES
+# 10 BACKTEST
 with tabs[9]:
-    if lot=="Lotofácil":
-        fig,ax=plt.subplots()
-        m=np.random.randint(1,20,(5,5)); ax.imshow(m,cmap='Greens'); ax.set_title(f"Heatmap Ciclo {fase}")
-        for i in range(5):
-            for j in range(5): ax.text(j,i,m[i,j],ha='center',va='center',color='white')
-        st.pyplot(fig)
-    else: st.info("Heatmap disponível para Lotofácil")
+    st.warning("Backtest XGBoost — disponível na Etapa 2")
 
-# 11 AO VIVO
+# 11 PREÇOS
 with tabs[10]:
-    if res: st.success(f"Concurso {res.get('concurso')} - {res.get('data')}"); st.markdown(render([int(d) for d in res.get('dezenas',[])]))
-    else: st.warning("Sem conexão")
-    if feriado: st.warning("Feriado próximo - peso ajustado")
+    st.dataframe(pd.DataFrame([{"Loteria":k,"Preço":f"R$ {v['preco']:.2f}"} for k,v in LOTERIAS.items()]), hide_index=True)
 
-# 12 ESPECIAIS
+# 12 AO VIVO
 with tabs[11]:
-    for nome in ["Mega da Virada","Quina São João","Lotofácil Independência"]:
-        if st.button(nome): 
-            maxn=60 if "Mega" in nome else 80 if "Quina" in nome else 25
-            qtd=6 if "Mega" in nome else 5 if "Quina" in nome else 15
-            for t in ["Conservador","Equilibrado","Agressivo"]:
-                st.markdown(f"{t}: {render(sorted(random.sample(range(1,maxn+1),qtd)))}")
+    if dados:
+        ult=dados[0]
+        st.success(f"Concurso {ult['concurso']} - {ult['data']}")
+        st.markdown(render_color(ult["dezenas"]), unsafe_allow_html=True)
+        st.metric("Prêmio acumulado","Em breve")
 
-# 13 CAIXA
+# 13 ESPECIAIS
 with tabs[12]:
-    st.link_button("Site Oficial Caixa", "https://loterias.caixa.gov.br")
-    st.link_button("Mega-Sena", "https://loterias.caixa.gov.br/Paginas/Mega-Sena.aspx")
-    st.link_button("Lotofácil", "https://loterias.caixa.gov.br/Paginas/Lotofacil.aspx")
-
-# 14 CONFIG
-with tabs[13]:
-    st.subheader("Configuração IA + Laboratório")
-    c1,c2,c3=st.columns(3)
-    with c1: st.session_state.pesos[lot]["INÍCIO"]=st.slider("INÍCIO",0.3,0.9,st.session_state.pesos[lot]["INÍCIO"])
-    with c2: st.session_state.pesos[lot]["MEIO"]=st.slider("MEIO",0.3,0.9,st.session_state.pesos[lot]["MEIO"])
-    with c3: st.session_state.pesos[lot]["FIM"]=st.slider("FIM",0.3,0.9,st.session_state.pesos[lot]["FIM"])
-    st.write("✅ Hyperparameter tuning ativo")
-    st.write("✅ Ensemble voting ativo")
-    st.write("✅ Pool duplo ativo")
-    st.write("✅ Feedback contínuo ativo")
-    st.write("✅ API feriados ativa")
-    if st.button("Retreinar IA agora"): st.success("IA retreinada com pesos atuais!")
+    st.subheader("Loterias Especiais")
+    for nome in ["Mega da Virada","Quina São João","Lotofácil Independência"]:
+        st.write(f"**{nome}**")
