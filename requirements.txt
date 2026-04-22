@@ -5,6 +5,3 @@ scikit-learn
 xgboost
 requests
 matplotlib
-tensorflow
-deap
-scikit-optimize
