@@ -1,10 +1,4 @@
 streamlit
 pandas
 numpy
-scikit-learn
-xgboost
 requests
-matplotlib
-tensorflow
-deap
-scikit-optimize
